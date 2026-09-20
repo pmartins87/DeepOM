@@ -2,106 +2,106 @@
 
 Reference date: 2026-09-20
 
-## Current position
-
 Repository: `pmartins87/DeepOM`
-
-Current critical gate: **OM6 dense trainer + OM0/OM3 economic freeze**.
 
 ## Gate summary
 
 - OM0 Rules/economy: **PARTIAL PASS**
 - OM1 PLO4 evaluator: **PASS**
-- OM2 Equity/Jackpot engine: **PASS**
+- OM2 Equity/Jackpot: **PASS**
 - OM3 AoF kernel: **PARTIAL PASS**
-- OM4 Exact state census: **PASS**
-- OM5 Representation decision: **PASS**
-- OM6 Solver prototype: **IN PROGRESS**
-- OM7+ production training/runtime: **BLOCKED**
+- OM4 State census: **PASS**
+- OM5 Representation: **PASS**
+- OM6 Solver engineering: **IN PROGRESS — LOCAL BENCHMARK GATE**
+- OM7+: **BLOCKED**
 
-## Validated mathematical foundation
+## Validated foundation
 
-CI run on 2026-09-20 passed the complete current suite, including:
+Current CI covers:
 
-- independent Treys differential: **5,000 cases, 0 mismatches**;
-- exhaustive five-card evaluator: **2,598,960 hands PASS**;
-- exhaustive Jackpot probability validator: PASS;
-- exact PLO4 state census: PASS;
-- economy sensitivity census: PASS;
-- unit/regression suite: PASS.
+- exhaustive 2,598,960 five-card evaluator;
+- independent Treys differential: 5,000 cases / 0 mismatches;
+- exact and sampled equity;
+- exhaustive Royal Flush probability validation;
+- 4w/3w/HU action tree and chip conservation;
+- exact PLO4 state census;
+- economy/promotion sensitivity;
+- sparse CFR correctness;
+- dense CFR indexing and checkpoint/resume equivalence.
 
-### State space
+## Exact state representation
 
-- raw PLO4 starting hands: **270,725**;
-- exact global-suit-isomorphic classes: **16,432**;
-- 4w decision scenarios: 14 -> **230,048 infosets**;
-- 3w decision scenarios: 6 -> **98,592 infosets**;
-- HU decision scenarios: 2 -> **32,864 infosets**;
-- total exact canonical preflop infosets: **361,504**.
+- raw starting hands: 270,725;
+- exact suit-isomorphic classes: 16,432;
+- exact canonical infosets across current scenarios: **361,504**.
 
-Decision: **no strategic hand bucketing for v1**.
+Decision: no strategic hand bucketing for v1.
 
-## Development economic preset
+## Economics
 
+Development preset:
 `GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0`
 
-- stack: 5 BB;
-- base rake: 0.025 BB;
-- RB: 35% on base rake in the current project model;
-- net base rake: 0.01625 BB;
+- stack 5 BB;
+- net base rake after RB35: 0.01625 BB;
 - Jackpot fee: 0.025 BB;
 - Fortune fee: 0.025 BB;
-- fixed fee: **0.06625 BB per dealt player per hand** under the inherited DeepAoF fee-placement model;
-- Jackpot pool: $750,000;
-- Jackpot award at this preset: 375 BB;
-- Fortune pool: $75,000;
-- provisional inherited/scaled Fortune EV: **0.1040072480 BB per All-In**.
+- inherited fixed fee: 0.06625 BB/player/hand;
+- Jackpot award: 375 BB;
+- provisional Fortune EV: 0.1040072480 BB/All-In.
 
-### Jackpot census
+Jackpot remains materially hand-dependent and is modeled inside terminal utility. Fortune remains sensitivity-controlled.
 
-Among 270,725 raw PLO4 hands:
+## OM6 implementation
 
-- 228,085 have 0 Royal-eligible suits;
-- 42,040 have 1;
-- 600 have 2;
-- **42,640 / 270,725 = 15.7503%** have at least one Royal-eligible suit.
+Correctness oracle:
+- `deepom/solver_proto.py`
 
-At a 375 BB jackpot:
-- one-suit expected Jackpot credit at showdown = **0.2168131360 BB**;
-- two-suit = **0.4336262720 BB**;
-- random-hand mean = **0.0346292363 BB per showdown All-In**.
+Dense trainer:
+- `deepom/dense_solver.py`
 
-Jackpot is therefore strategically material and remains inside the solver payoff.
-
-## Fortune uncertainty
-
-The prior DeepAoF model is now normalized rather than copied blindly. Its reference calibration gives 0.10715968 BB/All-In at a $77,273.23 pool; pool-only scaling to $75,000 gives 0.1040072480 BB/All-In.
-
-This remains provisional because current public Fortune material does not expose the complete blind-specific payout/probability table. The solver now accepts explicit Fortune multipliers so policy sensitivity can be measured before production freeze.
-
-## Solver
-
-`deepom/solver_proto.py` is the correctness oracle:
-
-- external sampling;
-- CFR+;
+Implemented in dense trainer:
+- NumPy arrays indexed by scenario × one of 16,432 exact PLO4 classes;
+- external-sampling CFR+;
 - linear averaging;
-- exact PLO4 canonical key;
-- 4w/3w/HU;
-- gross or economic payoffs;
-- deterministic seeds;
-- explicit Fortune/Jackpot sensitivity.
+- gross/economic utility modes;
+- deterministic seed;
+- checkpoint/resume;
+- exact RNG restoration;
+- manifest;
+- class-index SHA256;
+- solver-array SHA256.
 
-It is not the intended production trainer.
+For 4w, dense core arrays are about **7.9 MiB**. Across all three modes the corresponding basic core is about **12.4 MiB**.
 
-## Immediate next work
+## Current engineering decision
 
-1. build dense indexed class/scenario tables;
-2. add checkpoint/resume and run manifests/hashes;
-3. parallelize traversal;
-4. run a small benchmark and Fortune sensitivity matrix;
-5. use those results to finish OM0/OM3;
-6. only then start OM7 convergence training.
+Do **not** parallelize yet. First measure the dense trainer on target hardware. This separates:
+- evaluator/traversal cost;
+- economic-payoff cost;
+- state/index cost.
+
+The benchmark is deliberately finite:
+- 4w;
+- 2 iterations;
+- 100 deals/iteration;
+- seed 123;
+- one economic run;
+- one gross run.
+
+Contract:
+`docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`
+
+One-command runner:
+`tools/run_om6_local_benchmark.sh`
+
+Expected output files:
+- `runs/om6_dense_4w_econ_i2_d100_seed123.json`
+- `runs/om6_dense_4w_gross_i2_d100_seed123.json`
+
+## After the benchmark
+
+Choose the next optimization based on measured evidence, then run a finite Fortune-sensitivity/cross-seed matrix. Only after that can OM0/OM3 be frozen and OM7 convergence training begin.
 
 ## Source of truth
 
@@ -117,3 +117,4 @@ It is not the intended production trainer.
 - `docs/OM5_REPRESENTATION_DECISION_20260920.md`
 - `docs/ECONOMY_SENSITIVITY_20260920.md`
 - `docs/OM6_SOLVER_PROTOTYPE_20260920.md`
+- `docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`
