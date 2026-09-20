@@ -1,0 +1,30 @@
+name: OM1 evaluator validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deepom/**"
+      - "tests/test_evaluator.py"
+      - "tools/validate_om1_exhaustive.py"
+      - ".github/workflows/om1-evaluator.yml"
+  pull_request:
+    paths:
+      - "deepom/**"
+      - "tests/test_evaluator.py"
+      - "tools/validate_om1_exhaustive.py"
+      - ".github/workflows/om1-evaluator.yml"
+
+jobs:
+  evaluator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit and rule tests
+        run: python -m unittest discover -s tests -v
+      - name: Exhaustive 5-card frequency validation
+        run: python tools/validate_om1_exhaustive.py
