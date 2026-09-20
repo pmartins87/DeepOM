@@ -10,6 +10,7 @@ on:
       - "tools/validate_om2_jackpot_exhaustive.py"
       - "tools/census_om4_preflop.py"
       - "tools/analyze_economy_sensitivity.py"
+      - "tools/differential_treys_omaha.py"
       - ".github/workflows/om1-evaluator.yml"
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - "tools/validate_om2_jackpot_exhaustive.py"
       - "tools/census_om4_preflop.py"
       - "tools/analyze_economy_sensitivity.py"
+      - "tools/differential_treys_omaha.py"
       - ".github/workflows/om1-evaluator.yml"
 
 jobs:
@@ -30,8 +32,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install independent evaluator
+        run: python -m pip install --disable-pip-version-check treys==0.1.8
       - name: Unit, Omaha-rule, equity, action-tree, economy and solver tests
         run: python -m unittest discover -s tests -v
+      - name: Independent OM1 differential vs Treys
+        run: python tools/differential_treys_omaha.py
       - name: Exhaustive OM1 five-card frequency validation
         run: python tools/validate_om1_exhaustive.py
       - name: Exhaustive OM2 Omaha Royal Flush probability validation
