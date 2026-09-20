@@ -4,7 +4,7 @@ Reference date: 2026-09-20
 
 ## Definition of done
 
-DeepOM base v1 is complete when OpenHoldem can read the real frozen Omaha game state, map it losslessly to a validated production policy, execute the correct legal action, and the mathematical policy, packaged runtime and live scraper/action path have each passed explicit finite gates.
+DeepOM base v1 is complete when OpenHoldem can read the real frozen GGPoker AoF Omaha state, map it losslessly to a validated production policy, execute the correct ALL-IN/FOLD action, and the mathematical policy, packaged runtime and live scraper/action path have each passed explicit finite gates.
 
 Population exploitation is a later layer and is **not** required to declare the base bot complete.
 
@@ -12,36 +12,45 @@ Population exploitation is a later layer and is **not** required to declare the 
 
 ## OM0 — Target game, rules and economy
 
-Status: **ACTIVE**
+Status: **PARTIAL PASS — CORE PRODUCT FROZEN / EVIDENCE COMPLETION ACTIVE**
 
-Freeze before solver design:
+Frozen:
 
-- exact variant: PLO4, PLO5 or another Omaha format;
-- table size(s);
-- cash/tournament/game mode;
-- blinds, ante and stack model;
-- legal bet sizes and pot-limit semantics;
-- all-in, side-pot and split-pot behavior;
-- run-it-twice / insurance / jackpot features if they affect EV;
-- gross rake and cap by player count/stake;
-- rakeback/PVI assumptions;
-- target poker room and OpenHoldem runtime environment.
+- GGPoker All-In or Fold Omaha cash;
+- PLO4 / four hole cards;
+- exactly 2 hole + 3 board cards at showdown;
+- 5 BB default stack for the published Omaha AoF cash rows;
+- ALL-IN/FOLD action set;
+- project jackpot pool scenario = $750,000;
+- project Fortune pool scenario = $75,000;
+- project rakeback model = 35% of the base-rake component;
+- stake-dependent economics represented by separate presets;
+- development preset = $0.20/$0.40.
+
+Still to close:
+
+- live confirmation of maximum table size / 4w-3w-HU transitions;
+- exact Fortune probability/tier calibration for the $75k pool;
+- exact rakeback eligibility/PVI treatment if the intended 35% is not an effective rebate on base rake;
+- any client-only jackpot/Fortune mechanics not exposed by the public rules;
+- runtime/tablemap details.
 
 ### Gate OM0 PASS
 
-A versioned rules/economy contract exists with primary evidence for every EV-relevant rule and no unresolved item capable of changing optimal strategy.
+A versioned rules/economy contract exists with evidence or an explicit project assumption for every EV-relevant rule. No unresolved item may be capable of changing the production strategy.
 
 ---
 
 ## OM1 — Independent Omaha evaluator
 
-Status: **NOT STARTED**
+Status: **READY TO START; PRODUCTION GATE STILL DEPENDS ON OM0**
 
 Requirements:
 
-- exact Omaha hand semantics: exactly 2 hole + exactly 3 board cards;
-- complete hand ranking tests;
-- board-only hand false-positive tests;
+- exact Omaha semantics: exactly 2 hole + exactly 3 board cards;
+- complete hand-ranking tests;
+- Royal Flush jackpot-qualifier tests;
+- board-only-hand false-positive tests;
 - duplicate-card/deck-integrity checks;
 - differential tests against at least one trusted independent implementation/reference;
 - deterministic test vectors committed to the repo.
@@ -54,58 +63,63 @@ Evaluator passes the frozen corpus with zero mismatches.
 
 ## OM2 — Equity engine
 
-Status: **NOT STARTED**
+Status: **BLOCKED BY OM1**
 
 Build and validate:
 
-- HU exact river/turn enumeration where tractable;
-- multiway sampled/exact modes as justified;
+- exact river/turn enumeration where tractable;
+- preflop Omaha equity sampling/exact subcases;
+- multiway sampled modes with confidence reporting;
 - collision-safe card removal;
-- suit-isomorphic caching only if equivalence is formally preserved;
-- reproducible RNG for sampled paths;
-- confidence/error reporting.
+- suit-isomorphic caching only if formal equivalence is preserved;
+- reproducible RNG;
+- jackpot trigger probability conditioned on the exact Omaha hole-card state.
 
 ### Gate OM2 PASS
 
-Equity engine matches independent reference results within exact equality or predefined statistical tolerance.
+Equity and jackpot-probability engines match independent reference results within exact equality or predefined statistical tolerance.
 
 ---
 
-## OM3 — Deterministic game kernel
+## OM3 — Deterministic AoF game kernel
 
-Status: **NOT STARTED**
+Status: **BLOCKED BY OM1/OM2**
 
-Implement:
+The public decision tree is much smaller than normal PLO because the game is AoF.
 
-- positions and player counts;
-- legal pot-limit action bounds;
-- check/call/fold/bet/raise/all-in transitions;
-- contribution accounting;
-- side pots;
-- rake/cap application at the correct terminal point;
-- terminal payouts including split pots.
+Implement and revalidate the DeepAoF structural tree:
+
+- 4w, 3w and HU modes if confirmed live;
+- FOLD or ALL-IN only;
+- blinds and 5 BB effective stack;
+- public action history;
+- terminal pot/contribution accounting;
+- split pots/ties;
+- fixed stake-specific rake/jackpot/Fortune fees;
+- rakeback;
+- jackpot and Fortune EV.
 
 ### Gate OM3 PASS
 
-Property tests conserve chips and every legal/terminal transition matches the frozen rules contract.
+Property tests conserve chips and every transition/payoff matches the frozen contract.
 
 ---
 
-## OM4 — Exact state-space census
+## OM4 — Exact Omaha state-space census
 
-Status: **NOT STARTED**
+Status: **BLOCKED BY OM1**
 
-Before choosing a solver architecture:
+Before choosing the solver representation:
 
-- enumerate public action histories;
-- enumerate/canonicalize hole-board card states;
-- quantify exact infosets/nodes per street/player count;
-- benchmark memory, traversal cost and runtime lookup footprint;
-- identify where exact solving is feasible and where abstraction may be unavoidable.
+- enumerate all C(52,4)=270,725 raw four-card starting combinations;
+- derive suit-isomorphic canonical classes without strategic information loss;
+- combine them with AoF public action histories;
+- quantify exact infosets for 4w/3w/HU;
+- benchmark memory, traversal cost and runtime lookup footprint.
 
 ### Decision gate
 
-**Do not copy DeepKK or DeepPot's state model.** The solver architecture is selected only after the Omaha state-space census.
+Do not import the 169-class Hold'em state model. Select exact representation or abstraction only after the Omaha census.
 
 ---
 
@@ -113,16 +127,13 @@ Before choosing a solver architecture:
 
 Status: **BLOCKED BY OM4**
 
-Default preference: preserve exact information.
+Default preference: preserve exact Omaha information.
 
 If exact solving is impractical, candidate abstractions must be benchmarked against finer/exact subgames. No abstraction is accepted merely because it is conventional.
 
 ### Gate OM5 PASS
 
-Either:
-
-- exact representation is feasible and frozen; or
-- an abstraction is accepted with measured error/loss and explicit stop criteria.
+Either exact representation is feasible and frozen, or an abstraction is accepted with measured error/loss and explicit stop criteria.
 
 ---
 
@@ -130,16 +141,16 @@ Either:
 
 Status: **BLOCKED BY OM5**
 
-Candidate algorithms may include CFR-family methods and other scalable equilibrium solvers. The choice is evidence-driven.
+First candidate: adapt the proven DeepAoF CFR+ orchestration while replacing Hold'em-specific card/equity/payoff components.
 
 Requirements:
 
-- deterministic manifests;
 - resumable checkpoints;
+- deterministic manifests;
 - stable RNG state;
 - per-infoset visits/regrets/strategy data;
-- scalable parallelism benchmark on available hardware;
-- no production action export yet.
+- scalable parallel benchmark;
+- no production export until validation.
 
 ---
 
@@ -147,15 +158,15 @@ Requirements:
 
 Status: **BLOCKED BY OM6**
 
-Use finite gates rather than open-ended training:
+Finite gates:
 
-- cross-seed/action stability;
-- regret/exploitability or best-response diagnostics appropriate to the solved game;
+- cross-seed policy stability;
+- regret / best-response diagnostics;
 - EV confidence;
 - policy-change trajectory by depth;
 - explicit stop criterion.
 
-A deeper run is launched only if the preceding gate identifies convergence as the current bottleneck.
+Deeper training is launched only if convergence remains the measured bottleneck.
 
 ---
 
@@ -163,18 +174,15 @@ A deeper run is launched only if the preceding gate identifies convergence as th
 
 Status: **BLOCKED BY OM7**
 
-Compare candidate representations/actions without inventing a winner in advance.
+Freeze per economic preset:
 
-Freeze:
-
-- strategy version;
-- economy/rules version;
+- rules/economy version;
 - solver/config hashes;
 - policy hashes;
 - exact state coverage;
 - release manifest.
 
-The frozen base is immutable.
+Never silently reuse a policy across stake presets whose fees or jackpot payout differ.
 
 ---
 
@@ -184,13 +192,13 @@ Status: **BLOCKED BY OM8**
 
 Build:
 
-- tablemap/scrape contract;
-- state reconstruction;
+- GGPoker AoF Omaha tablemap/scrape contract;
+- four-card hero hand extraction;
+- player-count/position reconstruction;
 - exact policy key;
-- runtime lookup;
-- legal action adapter;
-- fail-closed behavior on mismatch;
-- logging sufficient to reproduce every live decision.
+- legal ALL-IN/FOLD transport;
+- fail-closed mismatch behavior;
+- complete decision logging.
 
 ### Gate OM9 PASS
 
@@ -204,12 +212,13 @@ Status: **BLOCKED BY OM9**
 
 Finite live validation:
 
-- correct cards/player count/position;
-- correct pot and amount-to-call;
-- correct legal pot-limit sizing;
+- all four hero cards correct;
+- correct player count and position;
+- correct blinds/stack;
+- correct previous ALL-IN/FOLD history;
 - correct policy key;
-- correct action transport;
-- no stale state across hands/streets.
+- correct action;
+- no stale hand/state.
 
 Any invalid state/action blocks production and triggers rollback.
 
@@ -219,14 +228,7 @@ Any invalid state/action blocks production and triggers rollback.
 
 Status: **FUTURE**
 
-Only after base/runtime reliability:
-
-- structured action events;
-- player aliases;
-- context-conditioned frequencies;
-- showdown/revealed-card evidence;
-- pool priors;
-- sample confidence and shrinkage.
+Reuse DeepAoF architecture only after adapting it to Omaha hand/state semantics.
 
 ---
 
@@ -234,19 +236,12 @@ Only after base/runtime reliability:
 
 Status: **FUTURE / SEPARATE FROM BASE**
 
-Start only if measured opponent/population deviations are stable and material.
-
-Principles:
-
-- exploit policy never overwrites the frozen base;
-- exact context/model match required;
-- weak evidence falls back to base;
-- exploit EV is validated against held-out or otherwise independent evidence where possible.
+Exploit policies never overwrite the frozen base and must fall back on weak/mismatched evidence.
 
 ---
 
 ## Current critical path
 
-**OM0 -> OM1 -> OM2 -> OM3 -> OM4 -> OM5 -> OM6.**
+**Finish OM0 evidence in parallel with OM1 evaluator -> OM2 -> OM3 + OM4 -> OM5 -> OM6.**
 
-The immediate project task is to freeze the target Omaha game/economy. No expensive solver run is justified before that gate closes.
+No long solver run is justified yet.
