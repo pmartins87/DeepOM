@@ -16,6 +16,7 @@ from .aof_kernel import (
 )
 from .canonical import canonical_key_plo4
 from .equity import DECK
+from .economics import EconomicPreset, economic_terminal_payoff
 
 ACT_FOLD = 0
 ACT_ALLIN = 1
@@ -61,6 +62,9 @@ class SparseExternalSamplingCFR:
         seed: int = 123,
         cfr_plus: bool = True,
         linear_average: bool = True,
+        economic_preset: EconomicPreset | None = None,
+        fortune_multiplier: float = 1.0,
+        jackpot_multiplier: float = 1.0,
     ) -> None:
         if mode not in ("4w", "3w", "2w"):
             raise ValueError(f"unsupported mode: {mode}")
@@ -69,6 +73,11 @@ class SparseExternalSamplingCFR:
         self.rng = random.Random(self.seed)
         self.cfr_plus = bool(cfr_plus)
         self.linear_average = bool(linear_average)
+        self.economic_preset = economic_preset
+        self.fortune_multiplier = float(fortune_multiplier)
+        self.jackpot_multiplier = float(jackpot_multiplier)
+        if self.fortune_multiplier < 0 or self.jackpot_multiplier < 0:
+            raise ValueError("economic sensitivity multipliers must be non-negative")
         self.regrets: dict[InfoKey, list[float]] = {}
         self.strategy_sum: dict[InfoKey, list[float]] = {}
         self.visits: dict[InfoKey, int] = {}
@@ -105,12 +114,23 @@ class SparseExternalSamplingCFR:
         deal: SampledDeal,
         target_role: int,
     ) -> float:
-        payoff = gross_terminal_payoff(
+        if self.economic_preset is None:
+            payoff = gross_terminal_payoff(
+                state,
+                hole_cards=deal.hole_cards,
+                board_cards=deal.board_cards,
+            )
+            return float(payoff.utilities_bb[target_role])
+
+        payoff = economic_terminal_payoff(
             state,
             hole_cards=deal.hole_cards,
             board_cards=deal.board_cards,
+            preset=self.economic_preset,
+            fortune_multiplier=self.fortune_multiplier,
+            jackpot_multiplier=self.jackpot_multiplier,
         )
-        return float(payoff.utilities_bb[target_role])
+        return float(payoff.net_utilities_bb[target_role])
 
     def _traverse_external(
         self,
@@ -226,6 +246,11 @@ class SparseExternalSamplingCFR:
         return {
             "mode": self.mode,
             "seed": self.seed,
+            "economic_preset": (
+                self.economic_preset.preset_id if self.economic_preset is not None else None
+            ),
+            "fortune_multiplier": self.fortune_multiplier,
+            "jackpot_multiplier": self.jackpot_multiplier,
             "regrets": serialize(self.regrets),
             "strategy_sum": serialize(self.strategy_sum),
             "visits": sorted(self.visits.items()),
