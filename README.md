@@ -1,44 +1,71 @@
 # DeepOM
 
-DeepOM is the Omaha branch of the DeepPoker project: a solver-driven strategy, validation pipeline, opponent-modeling layer, and OpenHoldem runtime for Omaha.
+DeepOM is the **GGPoker All-In or Fold Omaha** branch of the DeepPoker project: a solver-driven base strategy, validation pipeline, opponent-modeling layer, and OpenHoldem runtime.
 
-The project inherits engineering principles from DeepKK and DeepPot, but **does not inherit their game model**. Omaha changes the card state space, equity calculation, hand evaluation and strategic tree. In particular, any implementation must enforce Omaha hand construction rules exactly: the final hand uses exactly 2 hole cards and exactly 3 board cards.
+The project deliberately reuses the mature **DeepAoF/DeepKK engineering architecture** where it is game-independent, but it does **not** reuse Hold'em hand classes, equities or solved policies. Omaha changes the private-card state space, evaluator, jackpot qualification and equity engine.
+
+## Frozen product direction
+
+Initial target:
+
+- room/product: **GGPoker All-In or Fold Omaha cash**;
+- variant: **4-card Omaha (PLO4)**;
+- action set: **ALL-IN or FOLD**;
+- default Omaha stack: **5 BB** according to the Omaha rows in GGPoker's current AoF table;
+- ante: none identified in the published AoF cash table;
+- board/deck: standard 52-card deck;
+- final Omaha hand: exactly **2 hole cards + 3 board cards**;
+- AoF Omaha jackpot qualifier: **Royal Flush using 2 of the 4 hole cards + 3 board cards**;
+- project jackpot pool scenario: **$750,000**;
+- project All-In Fortune pool scenario: **$75,000**;
+- project rakeback model: **35% rebate on the base rake component** unless later evidence requires a different eligibility/PVI treatment.
+
+GGPoker publishes stake-dependent AoF Omaha rake, jackpot fee, Fortune fee and jackpot payout percentages, so DeepOM will use **economic presets per stake** rather than pretending one policy is automatically correct for every blind level.
+
+The first engineering/calibration preset is **$0.20/$0.40 Omaha** because the official table gives a clean 5 BB buy-in and equal 0.025 BB rake / jackpot / Fortune fees. This is a development reference, not a claim that every stake has the same economics.
 
 ## Project objective
 
-Build a mathematically defensible Omaha bot whose production strategy can be reproduced, validated, packaged and executed by OpenHoldem with a fail-closed runtime.
-
-The first release target is deliberately **not frozen yet**. Before solver work begins, OM0 must freeze the real game variant and economy: PLO4/PLO5, table size, stack/blinds/ante, rake/cap, rakeback assumptions, allowed bet sizing, run-it-twice behavior if relevant, and the exact KKPoker/OpenHoldem environment.
+Build a mathematically defensible AoF Omaha bot whose production strategy can be reproduced, validated, packaged and executed by OpenHoldem with fail-closed behavior.
 
 ## Core architecture
 
-1. **Rules/economy evidence gate** — freeze the exact Omaha product and live economics.
-2. **Deterministic game kernel** — legal actions, betting tree, terminal payouts and side-pot logic.
-3. **Omaha evaluator/equity engine** — exact 2-from-hole + 3-from-board semantics, tested independently.
-4. **Canonical state representation** — suit-isomorphism/canonicalization with zero strategic information loss.
-5. **Base solver** — equilibrium-oriented strategy for the frozen target game.
-6. **Validation gates** — determinism, cross-seed stability, exploitability/regret/BR diagnostics, EV confidence and reproducible manifests.
-7. **Production freeze** — immutable base policy with hashes and release manifest.
-8. **OpenHoldem runtime** — exact lookup and action transport; unknown/mismatched state falls back safely.
-9. **Opponent data/modeling** — only after the base strategy/runtime are reliable.
-10. **Exploit layer** — separate from the immutable base and activated only with sufficient evidence.
+1. **Rules/economy evidence gate** — freeze the GGPoker AoF Omaha rules and stake preset.
+2. **Independent Omaha evaluator** — enforce exactly 2 hole + exactly 3 board cards.
+3. **Equity engine** — exact/sampled Omaha equity with collision-safe card removal.
+4. **Deterministic AoF game kernel** — 4w/3w/HU action histories inherited structurally from DeepAoF, revalidated for Omaha.
+5. **Exact state-space census** — count Omaha private-card/canonical states before choosing abstraction.
+6. **Base solver** — equilibrium-oriented strategy for a frozen economic preset.
+7. **Validation gates** — determinism, cross-seed stability, BR/regret/EV diagnostics, manifests and hashes.
+8. **Production freeze** — immutable base policy.
+9. **OpenHoldem runtime** — exact lookup and action transport; mismatch => safe fallback.
+10. **Opponent model + exploit layer** — later and separate from the frozen base.
 
-## Engineering principles
+## DeepAoF reuse policy
 
-- No solver before the game/economy contract is frozen.
-- No strategic abstraction merely to make the problem fit memory/time unless an explicit abstraction gate proves the loss is acceptable.
-- Base strategy and exploit strategy remain separate.
-- Unknown or inconsistent state never maps to a "nearby" strategy by guess.
-- Every long run must be resumable and emit configs, manifests, hashes and validation artifacts.
-- Production policies are immutable once published; new economics or game rules create a new version.
-- GitHub documents are part of the source of truth and must be updated as the project evolves.
+Reusable after review:
+
+- 4w/3w/2w AoF public action-history structure;
+- CFR+/training orchestration patterns;
+- run manifests, hashes and cross-seed audits;
+- opponent aliases/statistics architecture;
+- base-versus-exploit separation;
+- runtime fail-closed principles.
+
+Not reusable as poker math:
+
+- 169 Hold'em hand classes;
+- Hold'em equity tables;
+- Hold'em jackpot grouping/probability code;
+- Hold'em ranges/policies;
+- two-card evaluator assumptions.
+
+See [docs/DEEPAOF_REUSE_PLAN.md](docs/DEEPAOF_REUSE_PLAN.md).
 
 ## Current state
 
-Repository initialized on 2026-09-20.
+Current gate: **OM0 — PARTIALLY FROZEN / EVIDENCE COMPLETION**.
 
-Current gate: **OM0 — TARGET GAME / RULES / ECONOMY FREEZE**.
+The game variant and main economic scenario are now fixed. Remaining OM0 work is to finish the evidence contract for Fortune calibration, live player-count/table-state details and runtime-specific items before any production training.
 
-No solver architecture, abstraction, target stack, rake model, PLO4/PLO5 choice or production strategy is considered frozen yet.
-
-See [ROADMAP.md](ROADMAP.md), [STATUS.md](STATUS.md), [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md), and [docs/RULES_ECONOMY.md](docs/RULES_ECONOMY.md).
+See [ROADMAP.md](ROADMAP.md), [STATUS.md](STATUS.md), [docs/RULES_ECONOMY.md](docs/RULES_ECONOMY.md), and [docs/OM0_EVIDENCE.md](docs/OM0_EVIDENCE.md).
