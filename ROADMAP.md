@@ -4,44 +4,39 @@ Reference date: 2026-09-20
 
 ## Definition of done
 
-DeepOM base v1 is complete when OpenHoldem can read the real frozen GGPoker AoF Omaha state, map it losslessly to a validated production policy, execute the correct ALL-IN/FOLD action, and the mathematical policy, packaged runtime and live scraper/action path have each passed explicit finite gates.
-
-Population exploitation is a later layer and is **not** required to declare the base bot complete.
+DeepOM base v1 is complete when OpenHoldem can read the frozen GGPoker AoF Omaha state, map it losslessly to a validated policy, execute the correct ALL-IN/FOLD action, and the mathematical policy, packaged runtime and live scraper/action path have each passed finite gates.
 
 ---
 
 ## OM0 — Target game, rules and economy
 
-Status: **PARTIAL PASS — CORE PRODUCT FROZEN / ECONOMIC EVIDENCE COMPLETION ACTIVE**
+Status: **PARTIAL PASS — ECONOMIC EVIDENCE COMPLETION ACTIVE**
 
 Frozen:
-- GGPoker All-In or Fold Omaha cash;
-- PLO4 / four hole cards;
+- GGPoker AoF Omaha PLO4;
 - exactly 2 hole + 3 board cards;
 - 5 BB default stack;
-- ALL-IN/FOLD action set;
-- Jackpot pool scenario = $750,000;
-- Fortune pool scenario = $75,000;
-- rakeback modeling input = 35% of base rake;
-- development preset = $0.20/$0.40.
+- ALL-IN/FOLD;
+- Jackpot pool $750,000;
+- Fortune pool $75,000;
+- RB modeling input 35%;
+- development preset $0.20/$0.40.
 
 Implemented:
-- versioned `EconomicPreset`;
+- versioned economic preset;
 - net base rake 0.01625 BB;
-- fixed deterministic fee 0.06625 BB/player/hand under the inherited DeepAoF fee-placement contract;
-- exact Omaha Jackpot EV by starting hand;
-- provisional Fortune EV = 0.1040072480 BB per All-In after pool-only scaling;
-- explicit Fortune/Jackpot sensitivity multipliers.
+- inherited fixed-fee contract 0.06625 BB/player/hand;
+- exact hand-dependent Omaha Jackpot EV;
+- provisional Fortune EV 0.1040072480 BB/All-In;
+- explicit promotion sensitivity multipliers.
 
-Still to close:
-- stronger Fortune tier/probability evidence or a strategy-insensitivity proof;
-- live maximum table size / 4w-3w-HU confirmation;
-- 35% rakeback/PVI eligibility interpretation;
+Remaining:
+- stronger Fortune evidence or policy-insensitivity proof;
+- live 4w/3w/HU confirmation;
+- RB/PVI interpretation;
 - runtime/tablemap evidence.
 
-### Gate OM0 PASS
-
-Every EV-relevant rule must be either evidenced and frozen or proven strategically immaterial over a predefined sensitivity envelope.
+**PASS criterion:** every strategy-relevant economic uncertainty is evidenced/frozen or bounded by a sensitivity test showing no material policy effect.
 
 ---
 
@@ -50,12 +45,10 @@ Every EV-relevant rule must be either evidenced and frozen or proven strategical
 Status: **PASS**
 
 Evidence:
-- exact 2-hole + 3-board evaluator;
-- complete category/tiebreak tests;
-- board-only and wrong-hole-count false-positive tests;
-- duplicate-card integrity tests;
-- exhaustive 2,598,960 five-card frequency validation;
-- independent Treys differential: 5,000 deterministic random HU PLO4 showdowns, 0 mismatches.
+- exact 2+3 evaluator;
+- unit/rule corpus;
+- exhaustive 2,598,960 five-card validation;
+- independent Treys differential: 5,000 PLO4 HU comparisons, 0 mismatches.
 
 Record: `docs/OM1_OM2_VALIDATION_20260920.md`.
 
@@ -66,49 +59,41 @@ Record: `docs/OM1_OM2_VALIDATION_20260920.md`.
 Status: **PASS**
 
 Implemented:
-- exact tractable runout enumeration;
-- reproducible known-hand Monte Carlo;
-- reproducible multiway random-opponent Monte Carlo;
-- confidence reporting;
-- exact Royal Flush probability conditioned on PLO4 starting hand.
-
-Validation:
-- sampled vs exact fixed subgames;
-- exhaustive 1,712,304-board checks for representative jackpot classes.
+- exact tractable runouts;
+- reproducible Monte Carlo;
+- multiway sampling and confidence reporting;
+- exact Royal Flush probability by PLO4 starting hand.
 
 Record: `docs/OM1_OM2_VALIDATION_20260920.md`.
 
 ---
 
-## OM3 — Deterministic AoF game kernel
+## OM3 — Deterministic AoF kernel
 
 Status: **PARTIAL PASS**
 
 Passed:
-- 4w: 14 decision scenarios;
-- 3w: 6;
-- HU: 2;
-- fold/all-in transition legality;
-- blinds/5 BB contribution accounting;
-- walks, showdown, ties/splits;
+- 14 4w + 6 3w + 2 HU decision scenarios;
+- transition legality;
+- blinds/5 BB contributions;
+- walks/showdowns/ties;
 - gross chip conservation;
-- economic payoff module integrated.
+- economic payoff integration.
 
 Remaining:
-- final economic semantic freeze from OM0;
-- live confirmation that the inherited 4w/3w/HU table behavior matches GGPoker AoF Omaha.
+- OM0 economic freeze;
+- live confirmation of table/player behavior.
 
 ---
 
-## OM4 — Exact Omaha state-space census
+## OM4 — Exact state-space census
 
 Status: **PASS**
 
-Results:
-- 270,725 raw four-card hands;
-- 16,432 exact suit-isomorphic classes;
+- raw PLO4 hands: 270,725;
+- exact suit-isomorphic classes: 16,432;
 - brute force == Burnside;
-- exact infosets:
+- canonical infosets:
   - 4w 230,048;
   - 3w 98,592;
   - HU 32,864;
@@ -120,47 +105,51 @@ Record: `docs/OM4_CENSUS_20260920.md`.
 
 ## OM5 — Representation decision
 
-Status: **PASS — EXACT REPRESENTATION SELECTED**
+Status: **PASS — EXACT REPRESENTATION**
 
-No strategic hand bucketing for v1.
-
-Global suit relabeling is the only equivalence reduction. Core dense regret/average/visit arrays are about 12.4 MiB before metadata/alignment.
-
-Reversal requires a measured downstream bottleneck.
+No strategic bucketing for v1. Global suit relabeling is the only state reduction.
 
 Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ---
 
-## OM6 — Solver prototype / production trainer
+## OM6 — Solver engineering
 
-Status: **IN PROGRESS**
+Status: **IN PROGRESS — LOCAL BENCHMARK GATE**
 
 Passed:
-- sparse external-sampling CFR correctness prototype;
-- CFR+ clipping;
-- linear averaging;
-- exact PLO4 canonical keys;
-- deterministic seeds;
-- optional versioned economics and sensitivity multipliers;
-- regression tests.
-
-Remaining OM6 gate:
-- dense indexed arrays;
+- sparse external-sampling CFR correctness oracle;
+- CFR+ and linear averaging;
+- exact PLO4 state keys;
+- optional versioned economics;
+- dense indexed NumPy trainer;
+- full 16,432-class deterministic class index + SHA256;
+- compact per-mode dense arrays;
 - checkpoint/resume;
-- deterministic run manifest and hashes;
-- multiprocessing/parallel traversal;
-- benchmark on Ryzen 9;
-- cross-seed economic sensitivity mini-runs;
-- export format.
+- exact RNG restoration;
+- run manifest;
+- class-index and solver-array content hashes;
+- checkpoint/resume equivalence regression.
 
-Record: `docs/OM6_SOLVER_PROTOTYPE_20260920.md`.
+Current finite gate:
+- run the prescribed 4w economic + gross benchmark on target hardware;
+- compare throughput;
+- identify the measured bottleneck.
+
+Only after this gate decide whether the next optimization is multiprocessing, evaluator acceleration, canonical lookup acceleration, or another measured target.
+
+Remaining after benchmark:
+- selected throughput optimization;
+- cross-seed economic sensitivity mini-runs;
+- production policy export format.
+
+Benchmark contract: `docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`.
 
 ---
 
 ## OM7 — Base training and convergence
 
-Status: **BLOCKED BY OM6 + OM0 ECONOMIC FREEZE**
+Status: **BLOCKED BY OM6 + OM0/OM3**
 
 Finite gates:
 - cross-seed policy stability;
@@ -169,43 +158,31 @@ Finite gates:
 - policy-change trajectory;
 - explicit stop criterion.
 
-No deep training before the mini-run gates pass.
+No deep training before OM6 and economics are ready.
 
 ---
 
-## OM8 — Production policy selection and freeze
+## OM8 — Production policy freeze
 
 Status: **BLOCKED BY OM7**
 
-Freeze per economic preset:
-- rules/economy version;
-- solver/config hashes;
-- policy hashes;
-- exact state coverage;
-- release manifest.
+Freeze rules/economy/config/policy hashes and exact state coverage.
 
 ---
 
-## OM9 — OpenHoldem state contract and runtime
+## OM9 — OpenHoldem runtime
 
 Status: **BLOCKED BY OM8**
 
-Build:
-- GGPoker AoF Omaha tablemap/scrape contract;
-- four-card hero extraction;
-- player-count/position reconstruction;
-- exact policy key;
-- ALL-IN/FOLD action transport;
-- fail-closed mismatch behavior;
-- complete decision logging.
+Four-card scraping, state reconstruction, exact lookup, fail-closed action transport and logging.
 
 ---
 
-## OM10 — Live smoke and production gate
+## OM10 — Live smoke / production gate
 
 Status: **BLOCKED BY OM9**
 
-Any invalid card/state/action mapping blocks production and triggers rollback.
+Any invalid state/action mapping blocks production.
 
 ---
 
@@ -213,20 +190,16 @@ Any invalid card/state/action mapping blocks production and triggers rollback.
 
 Status: **FUTURE**
 
-Reuse DeepAoF architecture only after adapting statistics to Omaha state semantics.
-
 ---
 
 ## OM12 — Exploit layer
 
 Status: **FUTURE / SEPARATE FROM BASE**
 
-Exploit policies never overwrite the frozen base.
-
 ---
 
 ## Current critical path
 
-**OM6 dense indexed trainer -> short benchmark/sensitivity runs -> finish OM0/OM3 economic freeze -> OM7 convergence.**
+**Finite OM6 target-hardware benchmark -> measured optimization decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
-The next run must be a small engineering benchmark, not a long production solve.
+Do not start a long solve before this sequence passes.
