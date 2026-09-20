@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install independent evaluator
-        run: python -m pip install --disable-pip-version-check treys==0.1.8
+        run: python -m pip install --disable-pip-version-check treys==0.1.8 numpy==2.3.5
       - name: Unit, Omaha-rule, equity, action-tree, economy and solver tests
         run: python -m unittest discover -s tests -v
       - name: Independent OM1 differential vs Treys
