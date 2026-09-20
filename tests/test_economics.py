@@ -31,7 +31,7 @@ class EconomicPresetTests(unittest.TestCase):
 class EconomicPayoffTests(unittest.TestCase):
     HOLES = [
         "As Ks 2c 3d".split(),
-        "Ah Kh 4c 5d".split(),
+        "Ah 9h 4c 5d".split(),
     ]
     BOARD = "Qs Js Ts 7c 8d".split()
 
