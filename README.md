@@ -11,8 +11,7 @@ Initial target:
 - room/product: **GGPoker All-In or Fold Omaha cash**;
 - variant: **4-card Omaha (PLO4)**;
 - action set: **ALL-IN or FOLD**;
-- default Omaha stack: **5 BB** according to the Omaha rows in GGPoker's current AoF table;
-- ante: none identified in the published AoF cash table;
+- default Omaha stack: **5 BB**;
 - board/deck: standard 52-card deck;
 - final Omaha hand: exactly **2 hole cards + 3 board cards**;
 - AoF Omaha jackpot qualifier: **Royal Flush using 2 of the 4 hole cards + 3 board cards**;
@@ -20,32 +19,42 @@ Initial target:
 - project All-In Fortune pool scenario: **$75,000**;
 - project rakeback model: **35% rebate on the base rake component** unless later evidence requires a different eligibility/PVI treatment.
 
-GGPoker publishes stake-dependent AoF Omaha rake, jackpot fee, Fortune fee and jackpot payout percentages, so DeepOM will use **economic presets per stake** rather than pretending one policy is automatically correct for every blind level.
+The first engineering/calibration preset is **$0.20/$0.40 Omaha**.
 
-The first engineering/calibration preset is **$0.20/$0.40 Omaha** because the official table gives a clean 5 BB buy-in and equal 0.025 BB rake / jackpot / Fortune fees. This is a development reference, not a claim that every stake has the same economics.
+## Mathematical state
 
-## Project objective
+DeepOM now has:
 
-Build a mathematically defensible AoF Omaha bot whose production strategy can be reproduced, validated, packaged and executed by OpenHoldem with fail-closed behavior.
+- an independent PLO4 evaluator with exact 2+3 semantics;
+- exact/sampled Omaha equity;
+- exact Omaha Royal Flush jackpot probability;
+- the revalidated DeepAoF 4w/3w/HU All-In/Fold public tree;
+- an exact PLO4 suit-isomorphism canonicalizer;
+- **270,725 raw PLO4 hands -> 16,432 exact canonical classes**;
+- **361,504 canonical preflop infosets** across 14 4w + 6 3w + 2 HU decision scenarios;
+- an external-sampling CFR+/linear-averaging correctness prototype;
+- a versioned economic payoff model with RB35, Jackpot $750k and sensitivity-controlled Fortune $75k.
 
-## Core architecture
+The exact state census makes strategic bucketing unnecessary for v1. The selected representation preserves all ranks and suit structure and removes only global suit-label symmetry.
 
-1. **Rules/economy evidence gate** — freeze the GGPoker AoF Omaha rules and stake preset.
-2. **Independent Omaha evaluator** — enforce exactly 2 hole + exactly 3 board cards.
-3. **Equity engine** — exact/sampled Omaha equity with collision-safe card removal.
-4. **Deterministic AoF game kernel** — 4w/3w/HU action histories inherited structurally from DeepAoF, revalidated for Omaha.
-5. **Exact state-space census** — count Omaha private-card/canonical states before choosing abstraction.
-6. **Base solver** — equilibrium-oriented strategy for a frozen economic preset.
-7. **Validation gates** — determinism, cross-seed stability, BR/regret/EV diagnostics, manifests and hashes.
-8. **Production freeze** — immutable base policy.
-9. **OpenHoldem runtime** — exact lookup and action transport; mismatch => safe fallback.
-10. **Opponent model + exploit layer** — later and separate from the frozen base.
+## Validation
+
+CI validates:
+
+- all **2,598,960** five-card hands against exact known category frequencies;
+- deterministic PLO4 showdown comparison against independent **Treys** on 5,000 random HU boards with zero mismatches;
+- exact/sampled equity invariants;
+- exhaustive Omaha Jackpot probability checks;
+- action-tree and chip-conservation properties;
+- exact state-space census via both brute force and Burnside's lemma;
+- economy/promotion sensitivity census;
+- deterministic CFR prototype regressions.
 
 ## DeepAoF reuse policy
 
 Reusable after review:
 
-- 4w/3w/2w AoF public action-history structure;
+- 4w/3w/HU AoF public action-history structure;
 - CFR+/training orchestration patterns;
 - run manifests, hashes and cross-seed audits;
 - opponent aliases/statistics architecture;
@@ -64,8 +73,14 @@ See [docs/DEEPAOF_REUSE_PLAN.md](docs/DEEPAOF_REUSE_PLAN.md).
 
 ## Current state
 
-Current gate: **OM0 — PARTIALLY FROZEN / EVIDENCE COMPLETION**.
+- **OM0:** PARTIAL PASS — core product/economy preset exists; Fortune calibration, live player-count confirmation and RB/PVI evidence remain open.
+- **OM1:** PASS.
+- **OM2:** PASS.
+- **OM3:** PARTIAL PASS — mechanical tree/payoffs validated and economics implemented; production economic semantics are not fully frozen.
+- **OM4:** PASS.
+- **OM5:** PASS — exact 16,432-class representation selected.
+- **OM6:** IN PROGRESS — correctness prototype exists; dense indexed/parallel trainer, checkpoints and manifests remain.
 
-The game variant and main economic scenario are now fixed. Remaining OM0 work is to finish the evidence contract for Fortune calibration, live player-count/table-state details and runtime-specific items before any production training.
+No long production training run is justified until OM0/OM3 economic uncertainty is sensitivity-tested and the OM6 dense trainer is validated.
 
-See [ROADMAP.md](ROADMAP.md), [STATUS.md](STATUS.md), [docs/RULES_ECONOMY.md](docs/RULES_ECONOMY.md), and [docs/OM0_EVIDENCE.md](docs/OM0_EVIDENCE.md).
+See [ROADMAP.md](ROADMAP.md), [STATUS.md](STATUS.md), [docs/RULES_ECONOMY.md](docs/RULES_ECONOMY.md), and the dated validation records under [docs/](docs/).
