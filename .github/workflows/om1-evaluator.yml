@@ -1,4 +1,4 @@
-name: DeepOM math and mechanics validation
+name: DeepOM math, mechanics and economy validation
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - "tools/validate_om1_exhaustive.py"
       - "tools/validate_om2_jackpot_exhaustive.py"
       - "tools/census_om4_preflop.py"
+      - "tools/analyze_economy_sensitivity.py"
       - ".github/workflows/om1-evaluator.yml"
   pull_request:
     paths:
@@ -17,18 +18,19 @@ on:
       - "tools/validate_om1_exhaustive.py"
       - "tools/validate_om2_jackpot_exhaustive.py"
       - "tools/census_om4_preflop.py"
+      - "tools/analyze_economy_sensitivity.py"
       - ".github/workflows/om1-evaluator.yml"
 
 jobs:
   validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Unit, Omaha-rule, equity, action-tree and canonicalization tests
+      - name: Unit, Omaha-rule, equity, action-tree, economy and solver tests
         run: python -m unittest discover -s tests -v
       - name: Exhaustive OM1 five-card frequency validation
         run: python tools/validate_om1_exhaustive.py
@@ -36,3 +38,5 @@ jobs:
         run: python tools/validate_om2_jackpot_exhaustive.py
       - name: Exact OM4 PLO4 preflop suit-isomorphism census
         run: python tools/census_om4_preflop.py
+      - name: Exact promotion/economy sensitivity census
+        run: python tools/analyze_economy_sensitivity.py
