@@ -1,4 +1,4 @@
-name: OM1 evaluator validation
+name: OM1-OM2 math validation
 
 on:
   push:
@@ -6,17 +6,21 @@ on:
     paths:
       - "deepom/**"
       - "tests/test_evaluator.py"
+      - "tests/test_equity.py"
       - "tools/validate_om1_exhaustive.py"
+      - "tools/validate_om2_jackpot_exhaustive.py"
       - ".github/workflows/om1-evaluator.yml"
   pull_request:
     paths:
       - "deepom/**"
       - "tests/test_evaluator.py"
+      - "tests/test_equity.py"
       - "tools/validate_om1_exhaustive.py"
+      - "tools/validate_om2_jackpot_exhaustive.py"
       - ".github/workflows/om1-evaluator.yml"
 
 jobs:
-  evaluator:
+  math-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,7 +28,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Unit and rule tests
+      - name: Unit, Omaha-rule and equity tests
         run: python -m unittest discover -s tests -v
       - name: Exhaustive 5-card frequency validation
         run: python tools/validate_om1_exhaustive.py
+      - name: Exhaustive Omaha Royal Flush probability validation
+        run: python tools/validate_om2_jackpot_exhaustive.py
