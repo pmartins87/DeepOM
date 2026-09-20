@@ -2,110 +2,118 @@
 
 Reference date: 2026-09-20
 
-## Current gate
+## Current position
 
-**OM0 — PARTIAL PASS / CORE PRODUCT FROZEN**
+Repository: `pmartins87/DeepOM`
 
-Repository: `pmartins87/DeepOM`.
+Current critical gate: **OM6 dense trainer + OM0/OM3 economic freeze**.
 
-The project is now specifically targeting **GGPoker All-In or Fold Omaha (PLO4)** rather than generic Omaha.
+## Gate summary
 
-## Frozen decisions
+- OM0 Rules/economy: **PARTIAL PASS**
+- OM1 PLO4 evaluator: **PASS**
+- OM2 Equity/Jackpot engine: **PASS**
+- OM3 AoF kernel: **PARTIAL PASS**
+- OM4 Exact state census: **PASS**
+- OM5 Representation decision: **PASS**
+- OM6 Solver prototype: **IN PROGRESS**
+- OM7+ production training/runtime: **BLOCKED**
 
-- four hole cards;
-- Omaha final hand = exactly 2 hole + exactly 3 board;
-- AoF action set = ALL-IN or FOLD;
-- default published Omaha AoF buy-in = 5 BB;
-- project Jackpot pool = $750,000;
-- project All-In Fortune pool = $75,000;
-- project rakeback model = 35% rebate on base rake;
-- economics are stake-dependent and will be versioned as presets;
-- first development preset = GGPoker Omaha $0.20/$0.40.
+## Validated mathematical foundation
 
-For the $0.20/$0.40 development preset, the current GGPoker table publishes:
+CI run on 2026-09-20 passed the complete current suite, including:
 
-- buy-in: $2 = 5 BB;
-- rake: 0.025 BB;
-- AoF jackpot fee: 0.025 BB;
-- Fortune fee: $0.01 = 0.025 BB;
-- jackpot payout: 0.02% of the jackpot pool.
+- independent Treys differential: **5,000 cases, 0 mismatches**;
+- exhaustive five-card evaluator: **2,598,960 hands PASS**;
+- exhaustive Jackpot probability validator: PASS;
+- exact PLO4 state census: PASS;
+- economy sensitivity census: PASS;
+- unit/regression suite: PASS.
 
-With the project $750,000 jackpot pool, 0.02% corresponds to a $150 jackpot award, or 375 BB at BB=$0.40.
+### State space
 
-With 35% rakeback applied only to the 0.025 BB base rake, deterministic fees become:
+- raw PLO4 starting hands: **270,725**;
+- exact global-suit-isomorphic classes: **16,432**;
+- 4w decision scenarios: 14 -> **230,048 infosets**;
+- 3w decision scenarios: 6 -> **98,592 infosets**;
+- HU decision scenarios: 2 -> **32,864 infosets**;
+- total exact canonical preflop infosets: **361,504**.
 
+Decision: **no strategic hand bucketing for v1**.
+
+## Development economic preset
+
+`GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0`
+
+- stack: 5 BB;
+- base rake: 0.025 BB;
+- RB: 35% on base rake in the current project model;
 - net base rake: 0.01625 BB;
-- jackpot fee: 0.025 BB;
+- Jackpot fee: 0.025 BB;
 - Fortune fee: 0.025 BB;
-- total deterministic fee before promotional EV: **0.06625 BB**.
+- fixed fee: **0.06625 BB per dealt player per hand** under the inherited DeepAoF fee-placement model;
+- Jackpot pool: $750,000;
+- Jackpot award at this preset: 375 BB;
+- Fortune pool: $75,000;
+- provisional inherited/scaled Fortune EV: **0.1040072480 BB per All-In**.
 
-This is a project model. If later evidence shows that the 35% figure is nominal/PVI-adjusted or applies to a different fee base, the economy version must change and affected policies must be retrained.
+### Jackpot census
 
-## Important source reconciliation
+Among 270,725 raw PLO4 hands:
 
-GGPoker's generic AoF marketing copy says "8BB", but its current **Omaha-specific table rows consistently show 5 BB default buy-ins** (e.g. $0.20/$0.40 -> $2). DeepOM uses the specific Omaha table data, not the generic sentence.
+- 228,085 have 0 Royal-eligible suits;
+- 42,040 have 1;
+- 600 have 2;
+- **42,640 / 270,725 = 15.7503%** have at least one Royal-eligible suit.
 
-## Jackpot rule
+At a 375 BB jackpot:
+- one-suit expected Jackpot credit at showdown = **0.2168131360 BB**;
+- two-suit = **0.4336262720 BB**;
+- random-hand mean = **0.0346292363 BB per showdown All-In**.
 
-GGPoker states that AoF Omaha requires a **Royal Flush using two of the four hole cards and three community cards**. Hands normally must reach showdown; the published rule gives an Omaha exception when the Royal Flush is immediately completed on the flop.
+Jackpot is therefore strategically material and remains inside the solver payoff.
 
-This means the old Hold'em jackpot grouping cannot be reused. DeepOM must calculate Omaha jackpot probability from the actual four-card hand.
+## Fortune uncertainty
 
-## Fortune model
+The prior DeepAoF model is now normalized rather than copied blindly. Its reference calibration gives 0.10715968 BB/All-In at a $77,273.23 pool; pool-only scaling to $75,000 gives 0.1040072480 BB/All-In.
 
-Official GGPoker rules confirm:
+This remains provisional because current public Fortune material does not expose the complete blind-specific payout/probability table. The solver now accepts explicit Fortune multipliers so policy sensitivity can be measured before production freeze.
 
-- each All-In is eligible;
-- winning the poker hand is not required;
-- probability accumulates with All-In actions;
-- award depends on blind level and RNG;
-- a fixed Fortune fee is charged.
+## Solver
 
-The public page does not publish enough probability/tier detail to derive exact EV. Until a better source or live data is available, DeepOM will reuse the **architecture** of the previous DeepAoF Fortune model, not blindly reuse its dollar values. The old model's 2% trigger/tier schedule will be treated as a provisional calibration and scaled from its documented ~$77,273.23 pool reference to the project's $75,000 scenario.
+`deepom/solver_proto.py` is the correctness oracle:
 
-No production strategy is frozen on that provisional Fortune calibration.
+- external sampling;
+- CFR+;
+- linear averaging;
+- exact PLO4 canonical key;
+- 4w/3w/HU;
+- gross or economic payoffs;
+- deterministic seeds;
+- explicit Fortune/Jackpot sensitivity.
 
-## DeepAoF reuse
+It is not the intended production trainer.
 
-The previous `pmartins87/DeepAoF` repository is now an explicit upstream engineering reference.
+## Immediate next work
 
-Reuse candidates:
+1. build dense indexed class/scenario tables;
+2. add checkpoint/resume and run manifests/hashes;
+3. parallelize traversal;
+4. run a small benchmark and Fortune sensitivity matrix;
+5. use those results to finish OM0/OM3;
+6. only then start OM7 convergence training.
 
-- 4w/3w/HU AoF public action tree;
-- CFR+ training orchestration;
-- multi-seed stability audits;
-- EV confidence/reporting;
-- manifests/hashes;
-- opponent-stat/alias architecture;
-- fail-closed runtime architecture.
+## Source of truth
 
-Forbidden direct reuse:
-
-- 169 Hold'em classes;
-- Hold'em equities;
-- Hold'em jackpot probability/grouping;
-- solved Hold'em policies/ranges.
-
-See `docs/DEEPAOF_REUSE_PLAN.md`.
-
-## Remaining OM0 items
-
-- confirm the live maximum player count / 4w-3w-HU behavior in the GGPoker AoF Omaha client;
-- replace the provisional Fortune calibration if stronger evidence is found;
-- confirm whether the intended 35% should be modeled as effective rakeback or nominal before PVI;
-- freeze the first production stake preset;
-- runtime/tablemap evidence.
-
-## Current source of truth
-
-- `README.md`;
-- `ROADMAP.md`;
-- `STATUS.md`;
-- `docs/PROJECT_CHARTER.md`;
-- `docs/RULES_ECONOMY.md`;
-- `docs/OM0_EVIDENCE.md`;
-- `docs/DEEPAOF_REUSE_PLAN.md`.
-
-## Immediate next action
-
-Begin OM1 with an independent PLO4 evaluator/test corpus while OM0 evidence completion continues. Do not start long CFR training yet.
+- `README.md`
+- `ROADMAP.md`
+- `STATUS.md`
+- `docs/PROJECT_CHARTER.md`
+- `docs/RULES_ECONOMY.md`
+- `docs/OM0_EVIDENCE.md`
+- `docs/DEEPAOF_REUSE_PLAN.md`
+- `docs/OM1_OM2_VALIDATION_20260920.md`
+- `docs/OM4_CENSUS_20260920.md`
+- `docs/OM5_REPRESENTATION_DECISION_20260920.md`
+- `docs/ECONOMY_SENSITIVITY_20260920.md`
+- `docs/OM6_SOLVER_PROTOTYPE_20260920.md`
