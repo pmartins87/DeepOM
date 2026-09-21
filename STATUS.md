@@ -1,6 +1,6 @@
 # DeepOM Status
 
-Reference date: 2026-09-20
+Reference date: 2026-09-21
 
 Repository: `pmartins87/DeepOM`
 
@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — RESIDENT/PRE-INDEXED DEAL GATE**
+- OM6 Solver engineering: **IN PROGRESS — PREPARED-INTEGER DETAIL GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -212,8 +212,30 @@ Decision:
 - convert each sampled deal to card indices once;
 - reuse those indices for Omaha table evaluation and exact class lookup.
 
+Resident/pre-indexed deal gate: **PASS**.
+
+Measured on Ryzen 9:
+- reference memmap/string path: 4,472.200 deals/s;
+- resident/pre-indexed path: 5,134.580 deals/s;
+- speedup: **1.1481x**;
+- exact solver-array SHA256 match: PASS.
+
+Relative to the original ~234.062 deals/s path, this is about **21.94x** faster with the same solver trajectory.
+
+Important profiling caveat:
+- the post-run family summary printed evaluator=0/class=0/residual=100%;
+- this is an instrumentation miss, not a real attribution;
+- the fast path changed function names to `evaluate_omaha_score_table_indices` and `index_of_indices`;
+- the cProfile artifact itself is valid.
+
+Profiler instrumentation has now been corrected for future runs.
+
+Current gate:
+- read the existing post-prepared-integer cProfile at function level;
+- no new training.
+
 Current runner:
-`tools/run_om6_prepared_integer_gate.sh`
+`tools/run_om6_prepared_profile_detail.sh`
 
 No long convergence training yet.
 
@@ -245,3 +267,5 @@ No long convergence training yet.
 - `docs/OM6_PROFILE_DETAIL_GATE_20260921.md`
 - `docs/OM6_PROFILE_DETAIL_RESULT_20260921.md`
 - `docs/OM6_PREPARED_INTEGER_GATE_20260921.md`
+- `docs/OM6_PREPARED_INTEGER_RESULT_20260921.md`
+- `docs/OM6_PREPARED_PROFILE_DETAIL_GATE_20260921.md`
