@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — CLASS-INDEX CACHE GATE**
+- OM6 Solver engineering: **IN PROGRESS — FAST EVALUATOR GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -108,15 +108,30 @@ Post-rank-cache profile:
 - canonicalization/class lookup: 28.84%;
 - residual: 5.59%.
 
+Class-index cache gate: **PASS**.
+
+Measured on Ryzen 9:
+- uncached class lookup: 528.219 deals/s;
+- cached class index: 751.926 deals/s;
+- speedup: **1.4235x**;
+- exact solver-array SHA256 match: PASS.
+
+Combined with showdown-rank caching, throughput improved from 234.062 to 751.926 deals/s, about **3.21x** overall.
+
+Post-class-cache profile:
+- evaluator: **87.61%**;
+- canonicalization/class lookup: **6.05%**;
+- residual: **6.33%**.
+
 Current selected optimization:
-- compute each player's exact PLO4 class index once per sampled deal;
-- reuse it at every infoset;
-- require bit-identical solver trajectory.
+- replace repeated validation/dictionary-heavy five-card work inside the Omaha evaluator with an exact encoded integer fast path;
+- keep the original evaluator as a reference oracle;
+- require independent Treys PASS, direct fast-vs-reference equality, and bit-identical solver trajectory.
 
 Current runner:
-`tools/run_om6_class_cache_gate.sh`
+`tools/run_om6_fast_evaluator_gate.sh`
 
-After this A/B, the included post-profile decides whether the next target is the evaluator implementation itself. No long convergence training yet.
+No long convergence training yet.
 
 ## Source of truth
 
@@ -134,3 +149,5 @@ After this A/B, the included post-profile decides whether the next target is the
 - `docs/OM6_RANK_CACHE_GATE_20260921.md`
 - `docs/OM6_RANK_CACHE_RESULT_20260921.md`
 - `docs/OM6_CLASS_CACHE_GATE_20260921.md`
+- `docs/OM6_CLASS_CACHE_RESULT_20260921.md`
+- `docs/OM6_FAST_EVALUATOR_GATE_20260921.md`
