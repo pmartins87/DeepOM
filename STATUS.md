@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — PROFILING GATE**
+- OM6 Solver engineering: **IN PROGRESS — EVALUATOR RANK-CACHE GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -79,29 +79,28 @@ Decision:
 
 ## Current gate
 
-**OM6 hot-path profiler is implemented and ready for the Ryzen 9 run.**
+The Ryzen 9 hot-path profile is complete:
 
-Frozen target profile:
-- 4w;
-- gross payoff;
-- 500 deals;
-- seed 123;
-- class-index construction measured separately and excluded from the profiled training path.
+- Omaha evaluator: **83.20%** of profiled time;
+- PLO4 canonicalization/lookup: **11.78%**;
+- residual CFR/Python/NumPy/state work: **5.02%**.
 
-Runner:
-`tools/run_om6_profile.sh`
+Decision: optimize evaluator reuse first.
 
-Outputs:
-- `runs/om6_profile_4w_gross_d500_seed123.json`
-- `runs/om6_profile_4w_gross_d500_seed123.txt`
-- `runs/om6_profile_4w_gross_d500_seed123.prof`
+Implemented:
+- precomputed exact Omaha rank per player once per sampled deal;
+- fast terminal payoff path using those precomputed ranks;
+- economics applied on top of a precomputed gross payoff;
+- checkpoint schema updated;
+- exact cached-vs-legacy trajectory regression;
+- finite A/B benchmark + post-optimization profiler.
 
-The JSON directly compares the cumulative share of:
-1. `evaluate_omaha`;
-2. `canonical_key_plo4`;
-3. residual CFR/Python/NumPy/state work.
+Current runner:
+`tools/run_om6_rank_cache_gate.sh`
 
-After this single finite profile, select exactly one throughput optimization target. No long convergence training yet.
+PASS requires bit-identical solver arrays between legacy and cached trainers plus a measured throughput improvement.
+
+After that, the post-optimization profile decides the next bottleneck. No long convergence training yet.
 
 ## Source of truth
 
@@ -114,5 +113,6 @@ After this single finite profile, select exactly one throughput optimization tar
 - `docs/OM5_REPRESENTATION_DECISION_20260920.md`
 - `docs/ECONOMY_SENSITIVITY_20260920.md`
 - `docs/OM6_SOLVER_PROTOTYPE_20260920.md`
-- `docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`
 - `docs/OM6_TARGET_BENCHMARK_RESULT_20260920.md`
+- `docs/OM6_HOTPATH_PROFILE_RESULT_20260921.md`
+- `docs/OM6_RANK_CACHE_GATE_20260921.md`
