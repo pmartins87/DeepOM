@@ -39,6 +39,49 @@ CATEGORY_NAME = {
 }
 
 
+_TIEBREAK_LEN = {
+    HIGH_CARD: 5,
+    ONE_PAIR: 4,
+    TWO_PAIR: 3,
+    THREE_OF_A_KIND: 3,
+    STRAIGHT: 1,
+    FLUSH: 5,
+    FULL_HOUSE: 2,
+    FOUR_OF_A_KIND: 2,
+    STRAIGHT_FLUSH: 1,
+}
+
+
+def _pack_hand_score(category: int, *tiebreak: int) -> int:
+    """Pack HandRank ordering into one monotone integer."""
+    values = list(tiebreak[:5]) + [0] * (5 - len(tiebreak[:5]))
+    return (
+        (int(category) << 20)
+        | (int(values[0]) << 16)
+        | (int(values[1]) << 12)
+        | (int(values[2]) << 8)
+        | (int(values[3]) << 4)
+        | int(values[4])
+    )
+
+
+def handrank_to_score(rank: "HandRank") -> int:
+    return _pack_hand_score(rank.category, *rank.tiebreak)
+
+
+def score_to_handrank(score: int) -> "HandRank":
+    category = (int(score) >> 20) & 0xF
+    values = (
+        (int(score) >> 16) & 0xF,
+        (int(score) >> 12) & 0xF,
+        (int(score) >> 8) & 0xF,
+        (int(score) >> 4) & 0xF,
+        int(score) & 0xF,
+    )
+    n = _TIEBREAK_LEN[category]
+    return HandRank(category, tuple(values[:n]))
+
+
 @dataclass(frozen=True, order=True)
 class HandRank:
     category: int
@@ -147,6 +190,75 @@ def _validate_omaha_inputs(
     return hole, board
 
 
+def _evaluate_five_codes_score(
+    c0: int,
+    c1: int,
+    c2: int,
+    c3: int,
+    c4: int,
+) -> int:
+    """Object-free exact five-card score for already-validated encoded cards."""
+    a, b, c, d, e = sorted(
+        (c0 >> 2, c1 >> 2, c2 >> 2, c3 >> 2, c4 >> 2),
+        reverse=True,
+    )
+    flush = (
+        (c0 & 3) == (c1 & 3) == (c2 & 3) == (c3 & 3) == (c4 & 3)
+    )
+
+    distinct = a > b > c > d > e
+    straight_high = 0
+    if distinct:
+        if a - e == 4:
+            straight_high = a
+        elif (a, b, c, d, e) == (14, 5, 4, 3, 2):
+            straight_high = 5
+
+    if flush and straight_high:
+        return _pack_hand_score(STRAIGHT_FLUSH, straight_high)
+
+    if a == d:
+        return _pack_hand_score(FOUR_OF_A_KIND, a, e)
+    if b == e:
+        return _pack_hand_score(FOUR_OF_A_KIND, b, a)
+
+    if a == c and d == e:
+        return _pack_hand_score(FULL_HOUSE, a, d)
+    if a == b and c == e:
+        return _pack_hand_score(FULL_HOUSE, c, a)
+
+    if flush:
+        return _pack_hand_score(FLUSH, a, b, c, d, e)
+
+    if straight_high:
+        return _pack_hand_score(STRAIGHT, straight_high)
+
+    if a == c:
+        return _pack_hand_score(THREE_OF_A_KIND, a, d, e)
+    if b == d:
+        return _pack_hand_score(THREE_OF_A_KIND, b, a, e)
+    if c == e:
+        return _pack_hand_score(THREE_OF_A_KIND, c, a, b)
+
+    if a == b and c == d:
+        return _pack_hand_score(TWO_PAIR, a, c, e)
+    if a == b and d == e:
+        return _pack_hand_score(TWO_PAIR, a, d, c)
+    if b == c and d == e:
+        return _pack_hand_score(TWO_PAIR, b, d, a)
+
+    if a == b:
+        return _pack_hand_score(ONE_PAIR, a, c, d, e)
+    if b == c:
+        return _pack_hand_score(ONE_PAIR, b, a, d, e)
+    if c == d:
+        return _pack_hand_score(ONE_PAIR, c, a, b, e)
+    if d == e:
+        return _pack_hand_score(ONE_PAIR, d, a, b, c)
+
+    return _pack_hand_score(HIGH_CARD, a, b, c, d, e)
+
+
 def _evaluate_five_codes(
     c0: int,
     c1: int,
@@ -232,23 +344,32 @@ def evaluate_omaha_reference(
     return best
 
 
-def evaluate_omaha(hole_cards: Iterable[str], board_cards: Iterable[str]) -> HandRank:
-    """Fast exact Omaha high: exactly 2 of 4 hole cards + exactly 3 board cards."""
+def evaluate_omaha_score(
+    hole_cards: Iterable[str],
+    board_cards: Iterable[str],
+) -> int:
+    """Fast exact Omaha high as a packed monotone integer score."""
     hole, board = _validate_omaha_inputs(hole_cards, board_cards)
     hc = tuple(CARD_CODE[c] for c in hole)
     bc = tuple(CARD_CODE[c] for c in board)
 
-    best: HandRank | None = None
+    best = -1
     for i, j in combinations(range(4), 2):
         hi = hc[i]
         hj = hc[j]
         for x, y, z in combinations(range(len(bc)), 3):
-            rank = _evaluate_five_codes(hi, hj, bc[x], bc[y], bc[z])
-            if best is None or rank > best:
-                best = rank
+            score = _evaluate_five_codes_score(hi, hj, bc[x], bc[y], bc[z])
+            if score > best:
+                best = score
 
-    assert best is not None
+    if best < 0:
+        raise RuntimeError("no legal Omaha 2+3 combination")
     return best
+
+
+def evaluate_omaha(hole_cards: Iterable[str], board_cards: Iterable[str]) -> HandRank:
+    """Fast exact Omaha high: exactly 2 of 4 hole cards + exactly 3 board cards."""
+    return score_to_handrank(evaluate_omaha_score(hole_cards, board_cards))
 
 
 def best_omaha_five(
