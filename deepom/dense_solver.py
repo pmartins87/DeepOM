@@ -46,7 +46,7 @@ def _colex_rank4(indices: Iterable[int]) -> int:
 class PreparedSampledDeal:
     hole_cards: tuple[tuple[str, ...], ...]
     board_cards: tuple[str, ...]
-    hand_ranks: tuple[HandRank, ...]
+    hand_ranks: tuple[HandRank | int, ...]
     class_indices: tuple[int, ...] | None = None
 
 
