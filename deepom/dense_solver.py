@@ -86,28 +86,46 @@ class PLO4ClassIndex:
 
     @classmethod
     def build(cls) -> "PLO4ClassIndex":
-        keys = sorted(
-            {
-                canonical_key_plo4(hand)
-                for hand in combinations(DECK, 4)
-            }
-        )
+        raw_keys: list[str] = []
+        raw_ranks: list[int] = []
+
+        for hand in combinations(DECK, 4):
+            raw_keys.append(canonical_key_plo4(hand))
+            raw_ranks.append(_colex_rank4(CARD_DECK_INDEX[c] for c in hand))
+
+        keys = sorted(set(raw_keys))
         if len(keys) != 16_432:
             raise RuntimeError(f"unexpected PLO4 class count: {len(keys)}")
+
+        key_to_index = {key: i for i, key in enumerate(keys)}
+        raw_to_class = np.empty(comb(52, 4), dtype=np.uint16)
+
+        for raw_rank, key in zip(raw_ranks, raw_keys):
+            raw_to_class[raw_rank] = key_to_index[key]
+
         payload = ("\n".join(keys) + "\n").encode("ascii")
         digest = hashlib.sha256(payload).hexdigest()
+        raw_digest = hashlib.sha256(raw_to_class.tobytes(order="C")).hexdigest()
+
         return cls(
             keys=tuple(keys),
-            key_to_index={key: i for i, key in enumerate(keys)},
+            key_to_index=key_to_index,
+            raw_to_class=raw_to_class,
             sha256=digest,
+            raw_lookup_sha256=raw_digest,
         )
 
-    def index_of(self, hole_cards: Iterable[str]) -> int:
+    def index_of_reference(self, hole_cards: Iterable[str]) -> int:
         key = canonical_key_plo4(hole_cards)
         try:
             return self.key_to_index[key]
         except KeyError as exc:
             raise KeyError(f"canonical PLO4 class not present: {key}") from exc
+
+    def index_of(self, hole_cards: Iterable[str]) -> int:
+        cards = normalize_cards(hole_cards, expected=4)
+        raw_rank = _colex_rank4(CARD_DECK_INDEX[c] for c in cards)
+        return int(self.raw_to_class[raw_rank])
 
 
 class DenseExternalSamplingCFR:
