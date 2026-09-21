@@ -16,6 +16,7 @@ from deepom.fivecard_table import (
     colex_rank5,
     colex_rank5_sorted,
     evaluate_omaha_score_table,
+    evaluate_omaha_score_table_indices,
 )
 
 
@@ -67,9 +68,18 @@ class PartialTableOmahaTests(unittest.TestCase):
 
         for hole, board in corpus:
             with self.subTest(hole=hole, board=board):
+                expected = evaluate_omaha_score(hole, board)
                 self.assertEqual(
                     evaluate_omaha_score_table(hole, board, table),
-                    evaluate_omaha_score(hole, board),
+                    expected,
+                )
+                self.assertEqual(
+                    evaluate_omaha_score_table_indices(
+                        tuple(CARD_INDEX[c] for c in hole),
+                        tuple(CARD_INDEX[c] for c in board),
+                        table,
+                    ),
+                    expected,
                 )
 
 
