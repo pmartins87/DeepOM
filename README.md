@@ -60,7 +60,7 @@ CI validates:
 - **OM3:** PARTIAL PASS — mechanics pass; production economics/live behavior remain.
 - **OM4:** PASS.
 - **OM5:** PASS — exact 16,432-class representation selected.
-- **OM6:** IN PROGRESS — accepted lossless optimizations raised throughput from 234.06 to 3,141.87 deals/s (~13.42x) with bit-identical solver arrays; the next finite gate removes per-candidate HandRank object creation using exact packed showdown scores.
+- **OM6:** IN PROGRESS — accepted lossless optimizations plus packed scores preserve bit-identical solver arrays; packed scores added ~5.5%, and the next finite gate tests an exact 2,598,960-entry five-card score table.
 - **OM7+:** BLOCKED.
 
 No long production solve is justified yet.
