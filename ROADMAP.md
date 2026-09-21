@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — RAW CLASS LOOKUP GATE**
+Status: **IN PROGRESS — PACKED SHOWDOWN SCORE GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -192,18 +192,31 @@ Post-fast-evaluator profile:
 - canonical class computation 29.96%;
 - residual 29.56%.
 
+Raw class-lookup A/B: **PASS**.
+
+Measured:
+- 2,359.496 -> 3,141.869 deals/s;
+- **1.3316x** speedup;
+- bit-identical solver arrays.
+
+Post-raw-lookup profile:
+- evaluator 57.26%;
+- direct class lookup 5.13%;
+- residual 37.62%;
+- canonicalization 0%.
+
 Selected next finite optimization:
-- dense raw-hand -> exact class-id lookup;
-- canonicalization retained as reference oracle;
+- exact packed integer showdown scores;
+- public HandRank evaluator retained;
 - solver-level bit-identical A/B required.
 
 Current runner:
-`tools/run_om6_raw_class_lookup_gate.sh`.
+`tools/run_om6_packed_score_gate.sh`.
 
 Remaining OM6 gate:
-- raw class-lookup A/B result;
-- post-raw-lookup profile;
-- decide between further evaluator/traversal optimization or controlled parallelism;
+- packed-score A/B result;
+- post-packed-score profile;
+- choose further evaluator/traversal optimization or controlled parallelism from measured attribution;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -264,6 +277,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 raw class-lookup A/B + post-profile -> next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 packed-score A/B + post-profile -> next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
