@@ -14,6 +14,8 @@ from deepom.evaluator import (
     evaluate_five,
     evaluate_omaha,
     evaluate_omaha_reference,
+    evaluate_omaha_score,
+    score_to_handrank,
     qualifies_aof_omaha_jackpot,
 )
 
@@ -107,6 +109,23 @@ class FastEvaluatorEquivalenceTests(unittest.TestCase):
             self.assertEqual(
                 evaluate_omaha(hole, board),
                 evaluate_omaha_reference(hole, board),
+            )
+
+
+class PackedScoreEquivalenceTests(unittest.TestCase):
+    def test_packed_score_roundtrips_exact_handrank_on_random_omaha_corpus(self):
+        ranks = "23456789TJQKA"
+        suits = "cdhs"
+        deck = [r + s for r in ranks for s in suits]
+        rng = random.Random(2026092101)
+
+        for _ in range(2000):
+            cards = rng.sample(deck, 9)
+            hole = cards[:4]
+            board = cards[4:]
+            self.assertEqual(
+                score_to_handrank(evaluate_omaha_score(hole, board)),
+                evaluate_omaha(hole, board),
             )
 
 
