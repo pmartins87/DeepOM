@@ -143,8 +143,18 @@ Decision:
 - next finite gate is profiling the shared evaluator/canonicalization/CFR path;
 - do not parallelize or launch long training until attribution exists.
 
+Profiling harness: **IMPLEMENTED / TARGET RESULT PENDING**.
+
+Frozen profile:
+- 4w gross;
+- 500 deals;
+- seed 123;
+- one-time class-index build excluded from profiled region.
+
+Runner: `tools/run_om6_profile.sh`.
+
 Remaining OM6 gate:
-- profiling result;
+- target-hardware profiling result;
 - one selected throughput optimization;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
