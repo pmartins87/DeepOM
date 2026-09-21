@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import base64
 import hashlib
 from itertools import combinations
+from math import comb
 import json
 from pathlib import Path
 import pickle
@@ -27,12 +28,18 @@ from .aof_kernel import (
 from .canonical import canonical_key_plo4
 from .economics import EconomicPreset, apply_economics_to_gross, economic_terminal_payoff
 from .equity import DECK
-from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference
+from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference, normalize_cards
 from .solver_proto import SampledDeal, sample_full_deal
 
 ACT_FOLD = 0
 ACT_ALLIN = 1
 ACTIONS = (FOLD, ALLIN)
+CARD_DECK_INDEX = {card: i for i, card in enumerate(DECK)}
+
+
+def _colex_rank4(indices: Iterable[int]) -> int:
+    a, b, c, d = sorted(int(i) for i in indices)
+    return comb(a, 1) + comb(b, 2) + comb(c, 3) + comb(d, 4)
 
 
 @dataclass(frozen=True)
@@ -48,6 +55,7 @@ def prepare_sampled_deal(
     *,
     class_index: "PLO4ClassIndex | None" = None,
     fast_omaha_evaluator: bool = True,
+    fast_class_lookup: bool = True,
 ) -> PreparedSampledDeal:
     """Compute immutable per-deal Omaha data once."""
     evaluator = evaluate_omaha if fast_omaha_evaluator else evaluate_omaha_reference
@@ -55,11 +63,11 @@ def prepare_sampled_deal(
         evaluator(hole, deal.board_cards)
         for hole in deal.hole_cards
     )
-    class_indices = (
-        tuple(class_index.index_of(hole) for hole in deal.hole_cards)
-        if class_index is not None
-        else None
-    )
+    if class_index is None:
+        class_indices = None
+    else:
+        lookup = class_index.index_of if fast_class_lookup else class_index.index_of_reference
+        class_indices = tuple(lookup(hole) for hole in deal.hole_cards)
     return PreparedSampledDeal(
         hole_cards=deal.hole_cards,
         board_cards=deal.board_cards,
@@ -72,7 +80,9 @@ def prepare_sampled_deal(
 class PLO4ClassIndex:
     keys: tuple[str, ...]
     key_to_index: dict[str, int]
+    raw_to_class: np.ndarray
     sha256: str
+    raw_lookup_sha256: str
 
     @classmethod
     def build(cls) -> "PLO4ClassIndex":
@@ -108,7 +118,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 4
+    CHECKPOINT_SCHEMA = 5
 
     def __init__(
         self,
@@ -124,6 +134,7 @@ class DenseExternalSamplingCFR:
         precompute_showdown_ranks: bool = True,
         precompute_class_indices: bool = True,
         fast_omaha_evaluator: bool = True,
+        fast_class_lookup: bool = True,
     ) -> None:
         if mode not in MODE_CONFIGS:
             raise ValueError(f"unsupported mode: {mode}")
@@ -141,6 +152,7 @@ class DenseExternalSamplingCFR:
         self.precompute_showdown_ranks = bool(precompute_showdown_ranks)
         self.precompute_class_indices = bool(precompute_class_indices)
         self.fast_omaha_evaluator = bool(fast_omaha_evaluator)
+        self.fast_class_lookup = bool(fast_class_lookup)
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
 
@@ -324,6 +336,7 @@ class DenseExternalSamplingCFR:
                         self.class_index if self.precompute_class_indices else None
                     ),
                     fast_omaha_evaluator=self.fast_omaha_evaluator,
+                    fast_class_lookup=self.fast_class_lookup,
                 )
             else:
                 deal = raw_deal
@@ -364,6 +377,7 @@ class DenseExternalSamplingCFR:
             "linear_average": self.linear_average,
             "class_count": len(self.class_index.keys),
             "class_index_sha256": self.class_index.sha256,
+            "raw_lookup_sha256": self.class_index.raw_lookup_sha256,
             "scenario_names": list(self.scenario_names),
             "shape": list(self.regrets.shape),
             "bytes_core": self.bytes_core,
@@ -377,6 +391,7 @@ class DenseExternalSamplingCFR:
             "precompute_showdown_ranks": self.precompute_showdown_ranks,
             "precompute_class_indices": self.precompute_class_indices,
             "fast_omaha_evaluator": self.fast_omaha_evaluator,
+            "fast_class_lookup": self.fast_class_lookup,
             "arrays_sha256": self._arrays_sha256(),
         }
 
@@ -421,6 +436,8 @@ class DenseExternalSamplingCFR:
             raise ValueError("unsupported checkpoint schema")
         if payload["class_index_sha256"] != class_index.sha256:
             raise ValueError("class-index hash mismatch")
+        if payload["raw_lookup_sha256"] != class_index.raw_lookup_sha256:
+            raise ValueError("raw class-lookup hash mismatch")
 
         expected_preset = (
             economic_preset.preset_id if economic_preset is not None else None
@@ -443,6 +460,7 @@ class DenseExternalSamplingCFR:
             precompute_showdown_ranks=bool(payload["precompute_showdown_ranks"]),
             precompute_class_indices=bool(payload["precompute_class_indices"]),
             fast_omaha_evaluator=bool(payload["fast_omaha_evaluator"]),
+            fast_class_lookup=bool(payload["fast_class_lookup"]),
         )
 
         data = np.load(directory / "state.npz")
