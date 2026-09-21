@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — DETAILED HOTSPOT ATTRIBUTION GATE**
+- OM6 Solver engineering: **IN PROGRESS — RESIDENT/PRE-INDEXED DEAL GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -195,12 +195,25 @@ Decision:
 - keep the five-card table;
 - do not choose C++/multiprocessing yet from family-level data because evaluator and residual are now close.
 
-Current gate:
-- read the existing cProfile artifact and rank exact functions by cumulative/self time;
-- no new training run.
+Detailed hotspot attribution: **PASS**.
+
+Key function-level findings:
+- `prepare_sampled_deal`: 0.153040 s cumulative;
+- `evaluate_omaha_score_table`: 0.134086 s cumulative / 0.047901 s self;
+- memmap `__getitem__`: 0.031354 s self;
+- repeated `normalize_cards` / validation / card conversion: material;
+- `sorted`: 0.019505 s self;
+- `_traverse_external`: 0.090612 s cumulative / 0.019208 s self;
+- `current_strategy`: 0.025014 s cumulative.
+
+Decision:
+- one final low-risk evaluator/data-path optimization before touching CFR traversal or multiprocessing;
+- load the small five-card table into resident memory;
+- convert each sampled deal to card indices once;
+- reuse those indices for Omaha table evaluation and exact class lookup.
 
 Current runner:
-`tools/run_om6_profile_detail.sh`
+`tools/run_om6_prepared_integer_gate.sh`
 
 No long convergence training yet.
 
@@ -230,3 +243,5 @@ No long convergence training yet.
 - `docs/OM6_FIVECARD_TABLE_GATE_20260921.md`
 - `docs/OM6_FIVECARD_TABLE_RESULT_20260921.md`
 - `docs/OM6_PROFILE_DETAIL_GATE_20260921.md`
+- `docs/OM6_PROFILE_DETAIL_RESULT_20260921.md`
+- `docs/OM6_PREPARED_INTEGER_GATE_20260921.md`
