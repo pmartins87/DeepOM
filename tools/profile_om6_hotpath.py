@@ -6,7 +6,10 @@ import json
 from pathlib import Path
 import pstats
 import platform
+import sys
 import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
 
