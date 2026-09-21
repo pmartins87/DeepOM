@@ -60,7 +60,7 @@ CI validates:
 - **OM3:** PARTIAL PASS — mechanics pass; production economics/live behavior remain.
 - **OM4:** PASS.
 - **OM5:** PASS — exact 16,432-class representation selected.
-- **OM6:** IN PROGRESS — function-level profiling found avoidable memmap/string-normalization overhead inside deal preparation; the next finite gate tests a resident five-card table plus one-time integer card preparation before moving to CFR traversal or multiprocessing.
+- **OM6:** IN PROGRESS — resident table + one-time integer deal preparation passed exact A/B and reached 5,134.58 deals/s (~21.94x the early legacy path); the next gate reads the existing post-optimization cProfile at function level before choosing CFR traversal vs one final evaluator optimization.
 - **OM7+:** BLOCKED.
 
 No long production solve is justified yet.
