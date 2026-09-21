@@ -12,109 +12,92 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — LOCAL BENCHMARK GATE**
+- OM6 Solver engineering: **IN PROGRESS — PROFILING GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
 
-Current CI covers:
-
-- exhaustive 2,598,960 five-card evaluator;
-- independent Treys differential: 5,000 cases / 0 mismatches;
-- exact and sampled equity;
-- exhaustive Royal Flush probability validation;
-- 4w/3w/HU action tree and chip conservation;
-- exact PLO4 state census;
-- economy/promotion sensitivity;
-- sparse CFR correctness;
-- dense CFR indexing and checkpoint/resume equivalence.
+Current CI covers the exhaustive evaluator, independent Treys differential, equity/Jackpot validation, action-tree mechanics, exact PLO4 census, economy sensitivity, sparse CFR oracle, dense indexing, and exact checkpoint/resume equivalence.
 
 ## Exact state representation
 
-- raw starting hands: 270,725;
+- raw PLO4 starting hands: 270,725;
 - exact suit-isomorphic classes: 16,432;
-- exact canonical infosets across current scenarios: **361,504**.
+- exact canonical infosets: **361,504** total.
 
-Decision: no strategic hand bucketing for v1.
+No strategic hand bucketing is used for v1.
 
 ## Economics
 
 Development preset:
 `GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0`
 
-- stack 5 BB;
-- net base rake after RB35: 0.01625 BB;
-- Jackpot fee: 0.025 BB;
-- Fortune fee: 0.025 BB;
-- inherited fixed fee: 0.06625 BB/player/hand;
-- Jackpot award: 375 BB;
-- provisional Fortune EV: 0.1040072480 BB/All-In.
+- 5 BB stack;
+- 0.01625 BB net base rake under RB35;
+- 0.025 BB Jackpot fee;
+- 0.025 BB Fortune fee;
+- 0.06625 BB inherited fixed fee/player/hand;
+- 375 BB Jackpot award;
+- provisional Fortune EV 0.1040072480 BB/All-In.
 
-Jackpot remains materially hand-dependent and is modeled inside terminal utility. Fortune remains sensitivity-controlled.
+## OM6 dense trainer
 
-## OM6 implementation
-
-Correctness oracle:
-- `deepom/solver_proto.py`
-
-Dense trainer:
-- `deepom/dense_solver.py`
-
-Implemented in dense trainer:
-- NumPy arrays indexed by scenario × one of 16,432 exact PLO4 classes;
-- external-sampling CFR+;
-- linear averaging;
-- gross/economic utility modes;
-- deterministic seed;
+Implemented:
+- dense NumPy arrays by scenario × exact PLO4 class;
+- CFR+ / external sampling / linear averaging;
+- gross and economic utility modes;
+- deterministic RNG;
 - checkpoint/resume;
-- exact RNG restoration;
-- manifest;
-- class-index SHA256;
-- solver-array SHA256.
+- RNG restoration;
+- manifests;
+- class-index and solver-array SHA256.
 
-For 4w, dense core arrays are about **7.9 MiB**. Across all three modes the corresponding basic core is about **12.4 MiB**.
+4w core size: 8,281,728 bytes (~7.9 MiB).
 
-## Current engineering decision
+## Target-hardware benchmark — PASS
 
-Do **not** parallelize yet. First measure the dense trainer on target hardware. This separates:
-- evaluator/traversal cost;
-- economic-payoff cost;
-- state/index cost.
+Ryzen 9 / WSL2, 4w, seed 123, 2 × 100 deals:
 
-The benchmark is deliberately finite:
-- 4w;
-- 2 iterations;
-- 100 deals/iteration;
-- seed 123;
-- one economic run;
-- one gross run.
+Economic:
+- 226.307383558 deals/s;
+- 0.883753755 s train time;
+- 6.282509262 s index build;
+- 783 visited infosets.
 
-Contract:
-`docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`
+Gross:
+- 229.477456977 deals/s;
+- 0.871545304 s train time;
+- 6.478470776 s index build;
+- 783 visited infosets.
 
-One-command runner:
-`tools/run_om6_local_benchmark.sh`
+Economic slowdown versus gross is only about **1.38%**.
 
-Expected output files:
-- `runs/om6_dense_4w_econ_i2_d100_seed123.json`
-- `runs/om6_dense_4w_gross_i2_d100_seed123.json`
+Decision:
+- economics is not the throughput bottleneck;
+- do not optimize Fortune/Jackpot arithmetic for speed;
+- do not parallelize yet.
 
-## After the benchmark
+## Current gate
 
-Choose the next optimization based on measured evidence, then run a finite Fortune-sensitivity/cross-seed matrix. Only after that can OM0/OM3 be frozen and OM7 convergence training begin.
+Profile the common hot path and measure the share of time in:
+1. Omaha evaluator;
+2. PLO4 canonicalization/class lookup;
+3. recursive CFR/Python overhead.
+
+After profiling, select exactly one throughput optimization target.
+
+No long convergence training yet.
 
 ## Source of truth
 
 - `README.md`
 - `ROADMAP.md`
 - `STATUS.md`
-- `docs/PROJECT_CHARTER.md`
 - `docs/RULES_ECONOMY.md`
-- `docs/OM0_EVIDENCE.md`
-- `docs/DEEPAOF_REUSE_PLAN.md`
 - `docs/OM1_OM2_VALIDATION_20260920.md`
 - `docs/OM4_CENSUS_20260920.md`
 - `docs/OM5_REPRESENTATION_DECISION_20260920.md`
 - `docs/ECONOMY_SENSITIVITY_20260920.md`
 - `docs/OM6_SOLVER_PROTOTYPE_20260920.md`
 - `docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`
+- `docs/OM6_TARGET_BENCHMARK_RESULT_20260920.md`
