@@ -104,6 +104,35 @@ class DenseSolverTests(unittest.TestCase):
             cached.manifest()["arrays_sha256"],
         )
 
+    def test_fast_evaluator_matches_reference_solver_exactly(self):
+        reference = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=654,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+            fast_omaha_evaluator=False,
+        )
+        fast = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=654,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+            fast_omaha_evaluator=True,
+        )
+
+        reference.run(additional_iterations=2, deals_per_iteration=3)
+        fast.run(additional_iterations=2, deals_per_iteration=3)
+
+        np.testing.assert_array_equal(reference.regrets, fast.regrets)
+        np.testing.assert_array_equal(reference.strategy_sum, fast.strategy_sum)
+        np.testing.assert_array_equal(reference.visits, fast.visits)
+        self.assertEqual(
+            reference.manifest()["arrays_sha256"],
+            fast.manifest()["arrays_sha256"],
+        )
+
     def test_checkpoint_resume_matches_continuous_run(self):
         a = DenseExternalSamplingCFR(
             mode="2w",
