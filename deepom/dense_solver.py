@@ -19,18 +19,40 @@ from .aof_kernel import (
     AOFState,
     apply_action,
     gross_terminal_payoff,
+    gross_terminal_payoff_from_ranks,
     initial_state,
     next_actor_index,
     scenario_for_state,
 )
 from .canonical import canonical_key_plo4
-from .economics import EconomicPreset, economic_terminal_payoff
+from .economics import EconomicPreset, apply_economics_to_gross, economic_terminal_payoff
 from .equity import DECK
+from .evaluator import HandRank, evaluate_omaha
 from .solver_proto import SampledDeal, sample_full_deal
 
 ACT_FOLD = 0
 ACT_ALLIN = 1
 ACTIONS = (FOLD, ALLIN)
+
+
+@dataclass(frozen=True)
+class PreparedSampledDeal:
+    hole_cards: tuple[tuple[str, ...], ...]
+    board_cards: tuple[str, ...]
+    hand_ranks: tuple[HandRank, ...]
+
+
+def prepare_sampled_deal(deal: SampledDeal) -> PreparedSampledDeal:
+    """Compute every player's Omaha showdown rank exactly once for this deal."""
+    ranks = tuple(
+        evaluate_omaha(hole, deal.board_cards)
+        for hole in deal.hole_cards
+    )
+    return PreparedSampledDeal(
+        hole_cards=deal.hole_cards,
+        board_cards=deal.board_cards,
+        hand_ranks=ranks,
+    )
 
 
 @dataclass(frozen=True)
@@ -73,7 +95,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 1
+    CHECKPOINT_SCHEMA = 2
 
     def __init__(
         self,
@@ -86,6 +108,7 @@ class DenseExternalSamplingCFR:
         economic_preset: EconomicPreset | None = None,
         fortune_multiplier: float = 1.0,
         jackpot_multiplier: float = 1.0,
+        precompute_showdown_ranks: bool = True,
     ) -> None:
         if mode not in MODE_CONFIGS:
             raise ValueError(f"unsupported mode: {mode}")
@@ -100,6 +123,7 @@ class DenseExternalSamplingCFR:
         self.economic_preset = economic_preset
         self.fortune_multiplier = float(fortune_multiplier)
         self.jackpot_multiplier = float(jackpot_multiplier)
+        self.precompute_showdown_ranks = bool(precompute_showdown_ranks)
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
 
@@ -125,7 +149,7 @@ class DenseExternalSamplingCFR:
         self,
         state: AOFState,
         actor: int,
-        deal: SampledDeal,
+        deal: SampledDeal | PreparedSampledDeal,
     ) -> tuple[int, int]:
         scenario = scenario_for_state(state)
         if scenario is None:
@@ -153,9 +177,27 @@ class DenseExternalSamplingCFR:
     def _terminal_utility(
         self,
         state: AOFState,
-        deal: SampledDeal,
+        deal: SampledDeal | PreparedSampledDeal,
         target_role: int,
     ) -> float:
+        if isinstance(deal, PreparedSampledDeal):
+            gross = gross_terminal_payoff_from_ranks(
+                state,
+                hand_ranks=deal.hand_ranks,
+            )
+            if self.economic_preset is None:
+                return float(gross.utilities_bb[target_role])
+
+            payoff = apply_economics_to_gross(
+                state,
+                hole_cards=deal.hole_cards,
+                gross=gross,
+                preset=self.economic_preset,
+                fortune_multiplier=self.fortune_multiplier,
+                jackpot_multiplier=self.jackpot_multiplier,
+            )
+            return float(payoff.net_utilities_bb[target_role])
+
         if self.economic_preset is None:
             payoff = gross_terminal_payoff(
                 state,
@@ -178,7 +220,7 @@ class DenseExternalSamplingCFR:
         self,
         *,
         state: AOFState,
-        deal: SampledDeal,
+        deal: SampledDeal | PreparedSampledDeal,
         target_role: int,
     ) -> float:
         actor = next_actor_index(state)
@@ -213,7 +255,7 @@ class DenseExternalSamplingCFR:
 
     def update_target_on_deal(
         self,
-        deal: SampledDeal,
+        deal: SampledDeal | PreparedSampledDeal,
         *,
         target_role: int,
     ) -> float:
@@ -226,7 +268,12 @@ class DenseExternalSamplingCFR:
             target_role=target_role,
         )
 
-    def _accumulate_average_path(self, deal: SampledDeal, *, weight: float) -> None:
+    def _accumulate_average_path(
+        self,
+        deal: SampledDeal | PreparedSampledDeal,
+        *,
+        weight: float,
+    ) -> None:
         state = initial_state(self.mode)
         while True:
             actor = next_actor_index(state)
@@ -247,7 +294,12 @@ class DenseExternalSamplingCFR:
         n = len(MODE_CONFIGS[self.mode]["roles"])
 
         for _ in range(int(deals)):
-            deal = sample_full_deal(self.mode, self.rng)
+            raw_deal = sample_full_deal(self.mode, self.rng)
+            deal: SampledDeal | PreparedSampledDeal
+            if self.precompute_showdown_ranks:
+                deal = prepare_sampled_deal(raw_deal)
+            else:
+                deal = raw_deal
             for target in range(n):
                 self.update_target_on_deal(deal, target_role=target)
             self._accumulate_average_path(deal, weight=weight)
@@ -295,6 +347,7 @@ class DenseExternalSamplingCFR:
             ),
             "fortune_multiplier": self.fortune_multiplier,
             "jackpot_multiplier": self.jackpot_multiplier,
+            "precompute_showdown_ranks": self.precompute_showdown_ranks,
             "arrays_sha256": self._arrays_sha256(),
         }
 
@@ -358,6 +411,7 @@ class DenseExternalSamplingCFR:
             economic_preset=economic_preset,
             fortune_multiplier=float(payload["fortune_multiplier"]),
             jackpot_multiplier=float(payload["jackpot_multiplier"]),
+            precompute_showdown_ranks=bool(payload["precompute_showdown_ranks"]),
         )
 
         data = np.load(directory / "state.npz")
