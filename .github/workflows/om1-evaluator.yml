@@ -57,6 +57,7 @@ jobs:
           assert p["deals"] == 2
           assert p["high_level_attribution"]["provisional_dominant_family"] in {
               "omaha_evaluator",
+              "plo4_class_lookup",
               "plo4_canonicalization_lookup",
               "cfr_python_and_other",
           }
