@@ -60,7 +60,7 @@ CI validates:
 - **OM3:** PARTIAL PASS — mechanics pass; production economics/live behavior remain.
 - **OM4:** PASS.
 - **OM5:** PASS — exact 16,432-class representation selected.
-- **OM6:** IN PROGRESS — dense trainer/checkpoint/manifests are implemented; next gate is a finite hardware benchmark before deciding how to parallelize.
+- **OM6:** IN PROGRESS — dense trainer/checkpoint/manifests and the hot-path profiler are implemented; the next gate is one finite Ryzen 9 profile to choose the measured optimization target.
 - **OM7+:** BLOCKED.
 
 No long production solve is justified yet.
