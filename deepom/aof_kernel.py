@@ -237,7 +237,7 @@ def _gross_contributions_bb(
 def gross_terminal_payoff_from_ranks(
     state: AOFState,
     *,
-    hand_ranks: Sequence[HandRank | None],
+    hand_ranks: Sequence[HandRank | int | None],
     sb_bb: float = 0.5,
     bb_bb: float = 1.0,
     stack_bb: float = 5.0,
@@ -267,7 +267,7 @@ def gross_terminal_payoff_from_ranks(
     if len(active) == 1:
         payouts[active[0]] = pot
     else:
-        active_ranks: dict[int, HandRank] = {}
+        active_ranks: dict[int, HandRank | int] = {}
         for i in active:
             rank = hand_ranks[i]
             if rank is None:
