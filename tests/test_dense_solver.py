@@ -8,6 +8,7 @@ from deepom.aof_kernel import ALLIN, apply_action, initial_state
 from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
 from deepom.economics import GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0
 from deepom.equity import DECK
+from deepom.fivecard_table import FIVE_CARD_COUNT, FiveCardScoreTable
 from deepom.solver_proto import SampledDeal
 
 
@@ -207,6 +208,41 @@ class DenseSolverTests(unittest.TestCase):
         self.assertEqual(
             handrank.manifest()["arrays_sha256"],
             packed.manifest()["arrays_sha256"],
+        )
+
+    def test_prepared_integer_fastpath_matches_string_path_exactly(self):
+        table = FiveCardScoreTable(
+            scores=np.zeros(FIVE_CARD_COUNT, dtype=np.uint32),
+            sha256="unit-zero-table",
+            path=None,
+            build_seconds=None,
+            loaded_from_cache=False,
+            memory_mapped=False,
+        )
+        reference = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=876,
+            five_card_score_table=table,
+            prepared_integer_fastpath=False,
+        )
+        fast = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=876,
+            five_card_score_table=table,
+            prepared_integer_fastpath=True,
+        )
+
+        reference.run(additional_iterations=2, deals_per_iteration=3)
+        fast.run(additional_iterations=2, deals_per_iteration=3)
+
+        np.testing.assert_array_equal(reference.regrets, fast.regrets)
+        np.testing.assert_array_equal(reference.strategy_sum, fast.strategy_sum)
+        np.testing.assert_array_equal(reference.visits, fast.visits)
+        self.assertEqual(
+            reference.manifest()["arrays_sha256"],
+            fast.manifest()["arrays_sha256"],
         )
 
     def test_checkpoint_resume_matches_continuous_run(self):
