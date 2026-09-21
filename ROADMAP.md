@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — CLASS-INDEX CACHE GATE**
+Status: **IN PROGRESS — FAST EVALUATOR GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -167,16 +167,30 @@ Post-rank-cache profile:
 - canonicalization 28.84%;
 - residual 5.59%.
 
+Class-index cache A/B: **PASS**.
+
+Measured:
+- 528.219 -> 751.926 deals/s;
+- **1.4235x** speedup;
+- bit-identical solver arrays.
+
+Post-class-cache profile:
+- evaluator 87.61%;
+- canonicalization 6.05%;
+- residual 6.33%.
+
 Selected next finite optimization:
-- cache each exact PLO4 class index once per sampled deal.
+- exact encoded Omaha evaluator fast path;
+- original evaluator retained as reference oracle;
+- solver-level bit-identical A/B required.
 
 Current runner:
-`tools/run_om6_class_cache_gate.sh`.
+`tools/run_om6_fast_evaluator_gate.sh`.
 
 Remaining OM6 gate:
-- class-index cache A/B result;
-- post-class-cache profile;
-- evaluator rewrite/compilation only if still justified by measurement;
+- fast-evaluator A/B result;
+- post-fast-evaluator profile;
+- decide whether further evaluator acceleration/compilation is still justified;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -237,6 +251,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 class-index cache A/B + post-profile -> evaluator optimization if still justified -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 fast-evaluator A/B + post-profile -> further measured optimization only if justified -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
