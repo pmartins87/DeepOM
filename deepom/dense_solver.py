@@ -28,7 +28,7 @@ from .aof_kernel import (
 from .canonical import canonical_key_plo4
 from .economics import EconomicPreset, apply_economics_to_gross, economic_terminal_payoff
 from .equity import DECK
-from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference, normalize_cards
+from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference, evaluate_omaha_score, normalize_cards
 from .solver_proto import SampledDeal, sample_full_deal
 
 ACT_FOLD = 0
@@ -55,14 +55,21 @@ def prepare_sampled_deal(
     *,
     class_index: "PLO4ClassIndex | None" = None,
     fast_omaha_evaluator: bool = True,
+    packed_showdown_scores: bool = True,
     fast_class_lookup: bool = True,
 ) -> PreparedSampledDeal:
     """Compute immutable per-deal Omaha data once."""
-    evaluator = evaluate_omaha if fast_omaha_evaluator else evaluate_omaha_reference
-    ranks = tuple(
-        evaluator(hole, deal.board_cards)
-        for hole in deal.hole_cards
-    )
+    if fast_omaha_evaluator and packed_showdown_scores:
+        ranks = tuple(
+            evaluate_omaha_score(hole, deal.board_cards)
+            for hole in deal.hole_cards
+        )
+    else:
+        evaluator = evaluate_omaha if fast_omaha_evaluator else evaluate_omaha_reference
+        ranks = tuple(
+            evaluator(hole, deal.board_cards)
+            for hole in deal.hole_cards
+        )
     if class_index is None:
         class_indices = None
     else:
@@ -136,7 +143,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 5
+    CHECKPOINT_SCHEMA = 6
 
     def __init__(
         self,
@@ -152,6 +159,7 @@ class DenseExternalSamplingCFR:
         precompute_showdown_ranks: bool = True,
         precompute_class_indices: bool = True,
         fast_omaha_evaluator: bool = True,
+        packed_showdown_scores: bool = True,
         fast_class_lookup: bool = True,
     ) -> None:
         if mode not in MODE_CONFIGS:
@@ -170,6 +178,7 @@ class DenseExternalSamplingCFR:
         self.precompute_showdown_ranks = bool(precompute_showdown_ranks)
         self.precompute_class_indices = bool(precompute_class_indices)
         self.fast_omaha_evaluator = bool(fast_omaha_evaluator)
+        self.packed_showdown_scores = bool(packed_showdown_scores)
         self.fast_class_lookup = bool(fast_class_lookup)
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
@@ -354,6 +363,7 @@ class DenseExternalSamplingCFR:
                         self.class_index if self.precompute_class_indices else None
                     ),
                     fast_omaha_evaluator=self.fast_omaha_evaluator,
+                    packed_showdown_scores=self.packed_showdown_scores,
                     fast_class_lookup=self.fast_class_lookup,
                 )
             else:
@@ -409,6 +419,7 @@ class DenseExternalSamplingCFR:
             "precompute_showdown_ranks": self.precompute_showdown_ranks,
             "precompute_class_indices": self.precompute_class_indices,
             "fast_omaha_evaluator": self.fast_omaha_evaluator,
+            "packed_showdown_scores": self.packed_showdown_scores,
             "fast_class_lookup": self.fast_class_lookup,
             "arrays_sha256": self._arrays_sha256(),
         }
@@ -478,6 +489,7 @@ class DenseExternalSamplingCFR:
             precompute_showdown_ranks=bool(payload["precompute_showdown_ranks"]),
             precompute_class_indices=bool(payload["precompute_class_indices"]),
             fast_omaha_evaluator=bool(payload["fast_omaha_evaluator"]),
+            packed_showdown_scores=bool(payload["packed_showdown_scores"]),
             fast_class_lookup=bool(payload["fast_class_lookup"]),
         )
 
