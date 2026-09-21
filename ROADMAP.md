@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — PROFILING GATE**
+Status: **IN PROGRESS — EVALUATOR RANK-CACHE GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -143,19 +143,25 @@ Decision:
 - next finite gate is profiling the shared evaluator/canonicalization/CFR path;
 - do not parallelize or launch long training until attribution exists.
 
-Profiling harness: **IMPLEMENTED / TARGET RESULT PENDING**.
+Target-hardware profiling: **PASS**.
 
-Frozen profile:
-- 4w gross;
-- 500 deals;
-- seed 123;
-- one-time class-index build excluded from profiled region.
+Measured:
+- evaluator: 83.20%;
+- canonicalization: 11.78%;
+- residual: 5.02%.
 
-Runner: `tools/run_om6_profile.sh`.
+Selected first optimization:
+- compute exact Omaha showdown rank once per player/deal;
+- reuse it at every terminal branch;
+- require exact cached-vs-legacy solver trajectory equality.
+
+Current finite runner:
+`tools/run_om6_rank_cache_gate.sh`.
 
 Remaining OM6 gate:
-- target-hardware profiling result;
-- one selected throughput optimization;
+- rank-cache A/B performance result;
+- post-optimization profile;
+- next measured optimization decision if still required;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -216,6 +222,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 profiling -> one measured throughput optimization -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 rank-cache A/B + post-profile -> next measured optimization if needed -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
