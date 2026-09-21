@@ -27,7 +27,7 @@ from .aof_kernel import (
 from .canonical import canonical_key_plo4
 from .economics import EconomicPreset, apply_economics_to_gross, economic_terminal_payoff
 from .equity import DECK
-from .evaluator import HandRank, evaluate_omaha
+from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference
 from .solver_proto import SampledDeal, sample_full_deal
 
 ACT_FOLD = 0
@@ -47,10 +47,12 @@ def prepare_sampled_deal(
     deal: SampledDeal,
     *,
     class_index: "PLO4ClassIndex | None" = None,
+    fast_omaha_evaluator: bool = True,
 ) -> PreparedSampledDeal:
     """Compute immutable per-deal Omaha data once."""
+    evaluator = evaluate_omaha if fast_omaha_evaluator else evaluate_omaha_reference
     ranks = tuple(
-        evaluate_omaha(hole, deal.board_cards)
+        evaluator(hole, deal.board_cards)
         for hole in deal.hole_cards
     )
     class_indices = (
@@ -106,7 +108,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 3
+    CHECKPOINT_SCHEMA = 4
 
     def __init__(
         self,
@@ -121,6 +123,7 @@ class DenseExternalSamplingCFR:
         jackpot_multiplier: float = 1.0,
         precompute_showdown_ranks: bool = True,
         precompute_class_indices: bool = True,
+        fast_omaha_evaluator: bool = True,
     ) -> None:
         if mode not in MODE_CONFIGS:
             raise ValueError(f"unsupported mode: {mode}")
@@ -137,6 +140,7 @@ class DenseExternalSamplingCFR:
         self.jackpot_multiplier = float(jackpot_multiplier)
         self.precompute_showdown_ranks = bool(precompute_showdown_ranks)
         self.precompute_class_indices = bool(precompute_class_indices)
+        self.fast_omaha_evaluator = bool(fast_omaha_evaluator)
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
 
@@ -319,6 +323,7 @@ class DenseExternalSamplingCFR:
                     class_index=(
                         self.class_index if self.precompute_class_indices else None
                     ),
+                    fast_omaha_evaluator=self.fast_omaha_evaluator,
                 )
             else:
                 deal = raw_deal
@@ -371,6 +376,7 @@ class DenseExternalSamplingCFR:
             "jackpot_multiplier": self.jackpot_multiplier,
             "precompute_showdown_ranks": self.precompute_showdown_ranks,
             "precompute_class_indices": self.precompute_class_indices,
+            "fast_omaha_evaluator": self.fast_omaha_evaluator,
             "arrays_sha256": self._arrays_sha256(),
         }
 
@@ -436,6 +442,7 @@ class DenseExternalSamplingCFR:
             jackpot_multiplier=float(payload["jackpot_multiplier"]),
             precompute_showdown_ranks=bool(payload["precompute_showdown_ranks"]),
             precompute_class_indices=bool(payload["precompute_class_indices"]),
+            fast_omaha_evaluator=bool(payload["fast_omaha_evaluator"]),
         )
 
         data = np.load(directory / "state.npz")
