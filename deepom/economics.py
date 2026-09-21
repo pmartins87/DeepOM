@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from .aof_kernel import ALLIN, FOLD, AOFState, gross_terminal_payoff
+from .aof_kernel import ALLIN, FOLD, AOFState, GrossPayoff, gross_terminal_payoff
 from .equity import royal_flush_full_board_probability
 from .evaluator import normalize_cards
 
@@ -111,43 +111,25 @@ def deterministic_jackpot_ev_bb(
     return float(jackpot_prize_bb) * royal_flush_full_board_probability(hole_cards)
 
 
-def economic_terminal_payoff(
+def apply_economics_to_gross(
     state: AOFState,
     *,
     hole_cards: Sequence[Iterable[str]],
-    board_cards: Iterable[str],
+    gross: GrossPayoff,
     preset: EconomicPreset = GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0,
     fortune_multiplier: float = 1.0,
     jackpot_multiplier: float = 1.0,
 ) -> EconomicPayoff:
-    """Add expected GGPoker AoF economics to the mechanical chip payoff.
-
-    Modeling contract:
-    - fixed rake/jackpot/Fortune charges are inherited from DeepAoF as a charge
-      to every dealt player each hand;
-    - 35% rakeback reduces only the base-rake component;
-    - Fortune EV is credited to every player who chose ALL-IN, regardless of
-      poker-hand outcome;
-    - Jackpot EV is credited only to ALL-IN players who reach a multi-player
-      showdown, using the exact PLO4 Royal Flush probability from their four-card
-      starting hand.
-
-    Fortune is still provisional. The fortune_multiplier parameter exists for
-    sensitivity analysis and must be 1.0 for a frozen production preset.
-    """
+    """Apply action-dependent AoF economics to an already-computed chip payoff."""
     if fortune_multiplier < 0 or jackpot_multiplier < 0:
         raise ValueError("sensitivity multipliers must be non-negative")
 
-    gross = gross_terminal_payoff(
-        state,
-        hole_cards=hole_cards,
-        board_cards=board_cards,
-    )
-
     holes = tuple(normalize_cards(h, expected=4) for h in hole_cards)
     n = len(holes)
-    fixed = tuple(preset.fixed_fee_per_player_bb for _ in range(n))
+    if len(gross.utilities_bb) != n or len(state.actions) != n:
+        raise ValueError("gross payoff / hole cards / state length mismatch")
 
+    fixed = tuple(preset.fixed_fee_per_player_bb for _ in range(n))
     went_allin = tuple(action == ALLIN for action in state.actions)
     fortune = tuple(
         (preset.fortune_ev_bb * fortune_multiplier) if ai else 0.0
@@ -169,11 +151,35 @@ def economic_terminal_payoff(
         gross.utilities_bb[i] - fixed[i] + fortune[i] + jackpot_values[i]
         for i in range(n)
     )
-
     return EconomicPayoff(
         gross_utilities_bb=tuple(gross.utilities_bb),
         fixed_fees_bb=fixed,
         fortune_credits_bb=fortune,
         jackpot_credits_bb=tuple(jackpot_values),
         net_utilities_bb=net,
+    )
+
+
+def economic_terminal_payoff(
+    state: AOFState,
+    *,
+    hole_cards: Sequence[Iterable[str]],
+    board_cards: Iterable[str],
+    preset: EconomicPreset = GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0,
+    fortune_multiplier: float = 1.0,
+    jackpot_multiplier: float = 1.0,
+) -> EconomicPayoff:
+    """Add expected GGPoker AoF economics to the mechanical chip payoff."""
+    gross = gross_terminal_payoff(
+        state,
+        hole_cards=hole_cards,
+        board_cards=board_cards,
+    )
+    return apply_economics_to_gross(
+        state,
+        hole_cards=hole_cards,
+        gross=gross,
+        preset=preset,
+        fortune_multiplier=fortune_multiplier,
+        jackpot_multiplier=jackpot_multiplier,
     )
