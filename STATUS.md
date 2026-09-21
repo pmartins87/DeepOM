@@ -79,14 +79,29 @@ Decision:
 
 ## Current gate
 
-Profile the common hot path and measure the share of time in:
-1. Omaha evaluator;
-2. PLO4 canonicalization/class lookup;
-3. recursive CFR/Python overhead.
+**OM6 hot-path profiler is implemented and ready for the Ryzen 9 run.**
 
-After profiling, select exactly one throughput optimization target.
+Frozen target profile:
+- 4w;
+- gross payoff;
+- 500 deals;
+- seed 123;
+- class-index construction measured separately and excluded from the profiled training path.
 
-No long convergence training yet.
+Runner:
+`tools/run_om6_profile.sh`
+
+Outputs:
+- `runs/om6_profile_4w_gross_d500_seed123.json`
+- `runs/om6_profile_4w_gross_d500_seed123.txt`
+- `runs/om6_profile_4w_gross_d500_seed123.prof`
+
+The JSON directly compares the cumulative share of:
+1. `evaluate_omaha`;
+2. `canonical_key_plo4`;
+3. residual CFR/Python/NumPy/state work.
+
+After this single finite profile, select exactly one throughput optimization target. No long convergence training yet.
 
 ## Source of truth
 
