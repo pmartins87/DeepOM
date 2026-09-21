@@ -1,3 +1,4 @@
+import random
 import tempfile
 import unittest
 
@@ -6,6 +7,7 @@ import numpy as np
 from deepom.aof_kernel import ALLIN, apply_action, initial_state
 from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
 from deepom.economics import GG_AOF_OMAHA_020_040_JP750K_F75K_RB35_V0
+from deepom.equity import DECK
 from deepom.solver_proto import SampledDeal
 
 
@@ -17,6 +19,16 @@ class DenseSolverTests(unittest.TestCase):
     def test_full_class_index(self):
         self.assertEqual(len(self.index.keys), 16_432)
         self.assertEqual(len(self.index.sha256), 64)
+
+    def test_raw_lookup_matches_canonical_reference(self):
+        self.assertEqual(len(self.index.raw_lookup_sha256), 64)
+        rng = random.Random(20260921)
+        for _ in range(1000):
+            hand = rng.sample(DECK, 4)
+            self.assertEqual(
+                self.index.index_of(hand),
+                self.index.index_of_reference(hand),
+            )
 
     def test_dense_core_size_is_small(self):
         s = DenseExternalSamplingCFR(
@@ -102,6 +114,37 @@ class DenseSolverTests(unittest.TestCase):
         self.assertEqual(
             uncached.manifest()["arrays_sha256"],
             cached.manifest()["arrays_sha256"],
+        )
+
+    def test_fast_class_lookup_matches_reference_solver_exactly(self):
+        reference = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=432,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+            fast_omaha_evaluator=True,
+            fast_class_lookup=False,
+        )
+        fast = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=432,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+            fast_omaha_evaluator=True,
+            fast_class_lookup=True,
+        )
+
+        reference.run(additional_iterations=2, deals_per_iteration=3)
+        fast.run(additional_iterations=2, deals_per_iteration=3)
+
+        np.testing.assert_array_equal(reference.regrets, fast.regrets)
+        np.testing.assert_array_equal(reference.strategy_sum, fast.strategy_sum)
+        np.testing.assert_array_equal(reference.visits, fast.visits)
+        self.assertEqual(
+            reference.manifest()["arrays_sha256"],
+            fast.manifest()["arrays_sha256"],
         )
 
     def test_fast_evaluator_matches_reference_solver_exactly(self):
