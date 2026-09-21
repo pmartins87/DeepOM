@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — PACKED SHOWDOWN SCORE GATE**
+- OM6 Solver engineering: **IN PROGRESS — FIVE-CARD SCORE TABLE GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -154,13 +154,32 @@ Post-raw-lookup profile:
 - residual CFR/Python/NumPy/state work: **37.62%**;
 - canonicalization: 0%.
 
+Packed showdown-score gate: **PASS**.
+
+Measured on Ryzen 9:
+- HandRank path: 2,825.052 deals/s;
+- packed score path: 2,980.913 deals/s;
+- speedup: **1.0552x**;
+- exact solver-array SHA256 match: PASS.
+
+Post-packed-score profile:
+- evaluator: **59.70%**;
+- direct class lookup: **4.83%**;
+- residual CFR/Python/NumPy/state work: **35.47%**.
+
+Decision:
+- keep packed scores because they are exact and useful as the storage format for lookup-table evaluation;
+- do not pursue more object-level micro-optimization because the gain was only ~5.5%.
+
 Current selected optimization:
-- preserve exact hand ordering in one packed integer score;
-- remove per-candidate `HandRank` object creation from the solver hot path;
-- require direct score equivalence and bit-identical solver trajectory.
+- precompute the exact score for all 2,598,960 five-card combinations;
+- use a deterministic combinadic index;
+- cache the ~9.91 MiB uint32 table locally;
+- retain the arithmetic evaluator as the reference oracle;
+- require direct table-vs-arithmetic validation and bit-identical solver trajectory.
 
 Current runner:
-`tools/run_om6_packed_score_gate.sh`
+`tools/run_om6_fivecard_table_gate.sh`
 
 No long convergence training yet.
 
@@ -186,3 +205,5 @@ No long convergence training yet.
 - `docs/OM6_RAW_CLASS_LOOKUP_GATE_20260921.md`
 - `docs/OM6_RAW_CLASS_LOOKUP_RESULT_20260921.md`
 - `docs/OM6_PACKED_SCORE_GATE_20260921.md`
+- `docs/OM6_PACKED_SCORE_RESULT_20260921.md`
+- `docs/OM6_FIVECARD_TABLE_GATE_20260921.md`
