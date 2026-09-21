@@ -40,18 +40,29 @@ class PreparedSampledDeal:
     hole_cards: tuple[tuple[str, ...], ...]
     board_cards: tuple[str, ...]
     hand_ranks: tuple[HandRank, ...]
+    class_indices: tuple[int, ...] | None = None
 
 
-def prepare_sampled_deal(deal: SampledDeal) -> PreparedSampledDeal:
-    """Compute every player's Omaha showdown rank exactly once for this deal."""
+def prepare_sampled_deal(
+    deal: SampledDeal,
+    *,
+    class_index: "PLO4ClassIndex | None" = None,
+) -> PreparedSampledDeal:
+    """Compute immutable per-deal Omaha data once."""
     ranks = tuple(
         evaluate_omaha(hole, deal.board_cards)
         for hole in deal.hole_cards
+    )
+    class_indices = (
+        tuple(class_index.index_of(hole) for hole in deal.hole_cards)
+        if class_index is not None
+        else None
     )
     return PreparedSampledDeal(
         hole_cards=deal.hole_cards,
         board_cards=deal.board_cards,
         hand_ranks=ranks,
+        class_indices=class_indices,
     )
 
 
@@ -95,7 +106,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 2
+    CHECKPOINT_SCHEMA = 3
 
     def __init__(
         self,
@@ -109,6 +120,7 @@ class DenseExternalSamplingCFR:
         fortune_multiplier: float = 1.0,
         jackpot_multiplier: float = 1.0,
         precompute_showdown_ranks: bool = True,
+        precompute_class_indices: bool = True,
     ) -> None:
         if mode not in MODE_CONFIGS:
             raise ValueError(f"unsupported mode: {mode}")
@@ -124,6 +136,7 @@ class DenseExternalSamplingCFR:
         self.fortune_multiplier = float(fortune_multiplier)
         self.jackpot_multiplier = float(jackpot_multiplier)
         self.precompute_showdown_ranks = bool(precompute_showdown_ranks)
+        self.precompute_class_indices = bool(precompute_class_indices)
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
 
@@ -154,9 +167,13 @@ class DenseExternalSamplingCFR:
         scenario = scenario_for_state(state)
         if scenario is None:
             raise ValueError("terminal state has no infoset")
+        if isinstance(deal, PreparedSampledDeal) and deal.class_indices is not None:
+            hand_i = deal.class_indices[actor]
+        else:
+            hand_i = self.class_index.index_of(deal.hole_cards[actor])
         return (
             self.scenario_to_index[scenario],
-            self.class_index.index_of(deal.hole_cards[actor]),
+            hand_i,
         )
 
     def current_strategy(self, scenario_i: int, hand_i: int) -> tuple[float, float]:
@@ -297,7 +314,12 @@ class DenseExternalSamplingCFR:
             raw_deal = sample_full_deal(self.mode, self.rng)
             deal: SampledDeal | PreparedSampledDeal
             if self.precompute_showdown_ranks:
-                deal = prepare_sampled_deal(raw_deal)
+                deal = prepare_sampled_deal(
+                    raw_deal,
+                    class_index=(
+                        self.class_index if self.precompute_class_indices else None
+                    ),
+                )
             else:
                 deal = raw_deal
             for target in range(n):
@@ -348,6 +370,7 @@ class DenseExternalSamplingCFR:
             "fortune_multiplier": self.fortune_multiplier,
             "jackpot_multiplier": self.jackpot_multiplier,
             "precompute_showdown_ranks": self.precompute_showdown_ranks,
+            "precompute_class_indices": self.precompute_class_indices,
             "arrays_sha256": self._arrays_sha256(),
         }
 
@@ -412,6 +435,7 @@ class DenseExternalSamplingCFR:
             fortune_multiplier=float(payload["fortune_multiplier"]),
             jackpot_multiplier=float(payload["jackpot_multiplier"]),
             precompute_showdown_ranks=bool(payload["precompute_showdown_ranks"]),
+            precompute_class_indices=bool(payload["precompute_class_indices"]),
         )
 
         data = np.load(directory / "state.npz")
