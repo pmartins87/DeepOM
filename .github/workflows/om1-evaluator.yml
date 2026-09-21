@@ -11,6 +11,7 @@ on:
       - "tools/census_om4_preflop.py"
       - "tools/analyze_economy_sensitivity.py"
       - "tools/differential_treys_omaha.py"
+      - "tools/profile_om6_hotpath.py"
       - ".github/workflows/om1-evaluator.yml"
   pull_request:
     paths:
@@ -21,6 +22,7 @@ on:
       - "tools/census_om4_preflop.py"
       - "tools/analyze_economy_sensitivity.py"
       - "tools/differential_treys_omaha.py"
+      - "tools/profile_om6_hotpath.py"
       - ".github/workflows/om1-evaluator.yml"
 
 jobs:
@@ -32,7 +34,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install independent evaluator
+      - name: Install validation dependencies
         run: python -m pip install --disable-pip-version-check treys==0.1.8 numpy==2.3.5
       - name: Unit, Omaha-rule, equity, action-tree, economy and solver tests
         run: python -m unittest discover -s tests -v
@@ -46,3 +48,17 @@ jobs:
         run: python tools/census_om4_preflop.py
       - name: Exact promotion/economy sensitivity census
         run: python tools/analyze_economy_sensitivity.py
+      - name: OM6 profiler smoke test
+        run: |
+          python tools/profile_om6_hotpath.py             --mode 2w             --deals 2             --seed 1             --output-json /tmp/om6_profile.json             --output-text /tmp/om6_profile.txt             --output-prof /tmp/om6_profile.prof
+          python - <<'PY'
+          import json
+          p = json.load(open("/tmp/om6_profile.json", encoding="utf-8"))
+          assert p["deals"] == 2
+          assert p["high_level_attribution"]["provisional_dominant_family"] in {
+              "omaha_evaluator",
+              "plo4_canonicalization_lookup",
+              "cfr_python_and_other",
+          }
+          print("OM6_PROFILER_SMOKE=PASS")
+          PY
