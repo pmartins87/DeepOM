@@ -17,7 +17,9 @@ from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
 TARGET_FUNCTIONS = (
     "prepare_sampled_deal",
     "evaluate_omaha",
+    "evaluate_omaha_score",
     "evaluate_omaha_reference",
+    "_evaluate_five_codes_score",
     "_evaluate_five_codes",
     "evaluate_five",
     "index_of",
@@ -131,7 +133,9 @@ def main() -> None:
         for name in TARGET_FUNCTIONS
     }
 
-    eval_seconds = float(targeted["evaluate_omaha"]["cumulative_seconds"])
+    eval_handrank_seconds = float(targeted["evaluate_omaha"]["cumulative_seconds"])
+    eval_score_seconds = float(targeted["evaluate_omaha_score"]["cumulative_seconds"])
+    eval_seconds = max(eval_handrank_seconds, eval_score_seconds)
     class_lookup_seconds = float(targeted["index_of"]["cumulative_seconds"])
     canonical_seconds = float(targeted["canonical_key_plo4"]["cumulative_seconds"])
 
@@ -166,8 +170,10 @@ def main() -> None:
         "mean_positive_regret": solver.mean_positive_regret(),
         "target_functions": targeted,
         "high_level_attribution": {
-            "evaluate_omaha_cumulative_seconds": eval_seconds,
-            "evaluate_omaha_share_of_profile": eval_share,
+            "evaluate_omaha_handrank_cumulative_seconds": eval_handrank_seconds,
+            "evaluate_omaha_score_cumulative_seconds": eval_score_seconds,
+            "omaha_evaluator_cumulative_seconds": eval_seconds,
+            "omaha_evaluator_share_of_profile": eval_share,
             "class_lookup_cumulative_seconds": class_lookup_seconds,
             "class_lookup_share_of_profile": class_lookup_share,
             "canonical_key_plo4_cumulative_seconds": canonical_seconds,
@@ -175,7 +181,7 @@ def main() -> None:
             "residual_share": residual_share,
             "provisional_dominant_family": provisional_dominant_family,
             "note": (
-                "evaluate_omaha and index_of are disjoint high-level per-deal paths. "
+                "The active Omaha evaluator path (HandRank or packed score) and index_of are disjoint high-level per-deal paths. "
                 "canonical_key_plo4 is retained as a diagnostic nested/reference path. "
                 "Residual includes traversal/state/NumPy/Python and other work."
             ),
