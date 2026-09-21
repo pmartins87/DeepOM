@@ -234,6 +234,60 @@ def _gross_contributions_bb(
     return contributions
 
 
+def gross_terminal_payoff_from_ranks(
+    state: AOFState,
+    *,
+    hand_ranks: Sequence[HandRank | None],
+    sb_bb: float = 0.5,
+    bb_bb: float = 1.0,
+    stack_bb: float = 5.0,
+) -> GrossPayoff:
+    """Fast terminal chip payoff using already-computed Omaha hand ranks.
+
+    This path intentionally performs no card parsing or hand evaluation. It is
+    for solver hot paths where the sampled deal has already been validated and
+    each player's showdown rank has been computed once.
+    """
+    if not is_terminal(state):
+        raise ValueError("payoff requires a terminal state")
+    n = len(state.actions)
+    if len(hand_ranks) != n:
+        raise ValueError(f"expected {n} hand ranks, got {len(hand_ranks)}")
+
+    contributions = _gross_contributions_bb(
+        state, sb_bb=sb_bb, bb_bb=bb_bb, stack_bb=stack_bb
+    )
+    active = [i for i, action in enumerate(state.actions) if action != FOLD]
+    if not active:
+        raise RuntimeError("invalid terminal state: no active player")
+
+    pot = sum(contributions)
+    payouts = [0.0] * n
+
+    if len(active) == 1:
+        payouts[active[0]] = pot
+    else:
+        active_ranks: dict[int, HandRank] = {}
+        for i in active:
+            rank = hand_ranks[i]
+            if rank is None:
+                raise ValueError(f"missing precomputed hand rank for active player {i}")
+            active_ranks[i] = rank
+
+        best = max(active_ranks.values())
+        winners = [i for i, rank in active_ranks.items() if rank == best]
+        share = pot / len(winners)
+        for i in winners:
+            payouts[i] += share
+
+    utilities = [payouts[i] - contributions[i] for i in range(n)]
+    return GrossPayoff(
+        contributions_bb=tuple(contributions),
+        payouts_bb=tuple(payouts),
+        utilities_bb=tuple(utilities),
+    )
+
+
 def gross_terminal_payoff(
     state: AOFState,
     *,
