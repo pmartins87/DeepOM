@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — FAST EVALUATOR GATE**
+- OM6 Solver engineering: **IN PROGRESS — RAW CLASS LOOKUP GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -123,13 +123,28 @@ Post-class-cache profile:
 - canonicalization/class lookup: **6.05%**;
 - residual: **6.33%**.
 
+Fast evaluator gate: **PASS**.
+
+Measured on Ryzen 9:
+- reference evaluator: 762.460 deals/s;
+- encoded fast evaluator: 2,389.733 deals/s;
+- speedup: **3.134x**;
+- exact solver-array SHA256 match: PASS.
+
+Relative to the original 234.062 deals/s path, the current trainer is about **10.21x faster** with the same solver trajectory.
+
+Post-fast-evaluator profile:
+- evaluator: **40.48%**;
+- canonical class computation: **29.96%**;
+- residual CFR/Python/NumPy/state work: **29.56%**.
+
 Current selected optimization:
-- replace repeated validation/dictionary-heavy five-card work inside the Omaha evaluator with an exact encoded integer fast path;
-- keep the original evaluator as a reference oracle;
-- require independent Treys PASS, direct fast-vs-reference equality, and bit-identical solver trajectory.
+- replace per-deal 24-suit canonicalization with a dense lossless raw-hand -> exact class-id table;
+- keep canonicalization as the reference oracle;
+- require direct lookup equivalence and bit-identical solver trajectory.
 
 Current runner:
-`tools/run_om6_fast_evaluator_gate.sh`
+`tools/run_om6_raw_class_lookup_gate.sh`
 
 No long convergence training yet.
 
@@ -151,3 +166,5 @@ No long convergence training yet.
 - `docs/OM6_CLASS_CACHE_GATE_20260921.md`
 - `docs/OM6_CLASS_CACHE_RESULT_20260921.md`
 - `docs/OM6_FAST_EVALUATOR_GATE_20260921.md`
+- `docs/OM6_FAST_EVALUATOR_RESULT_20260921.md`
+- `docs/OM6_RAW_CLASS_LOOKUP_GATE_20260921.md`
