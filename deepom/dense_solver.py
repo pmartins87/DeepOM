@@ -29,6 +29,7 @@ from .canonical import canonical_key_plo4
 from .economics import EconomicPreset, apply_economics_to_gross, economic_terminal_payoff
 from .equity import DECK
 from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference, evaluate_omaha_score, normalize_cards
+from .fivecard_table import FiveCardScoreTable, evaluate_omaha_score_table
 from .solver_proto import SampledDeal, sample_full_deal
 
 ACT_FOLD = 0
@@ -57,13 +58,20 @@ def prepare_sampled_deal(
     fast_omaha_evaluator: bool = True,
     packed_showdown_scores: bool = True,
     fast_class_lookup: bool = True,
+    five_card_score_table: FiveCardScoreTable | None = None,
 ) -> PreparedSampledDeal:
     """Compute immutable per-deal Omaha data once."""
     if fast_omaha_evaluator and packed_showdown_scores:
-        ranks = tuple(
-            evaluate_omaha_score(hole, deal.board_cards)
-            for hole in deal.hole_cards
-        )
+        if five_card_score_table is None:
+            ranks = tuple(
+                evaluate_omaha_score(hole, deal.board_cards)
+                for hole in deal.hole_cards
+            )
+        else:
+            ranks = tuple(
+                evaluate_omaha_score_table(hole, deal.board_cards, five_card_score_table)
+                for hole in deal.hole_cards
+            )
     else:
         evaluator = evaluate_omaha if fast_omaha_evaluator else evaluate_omaha_reference
         ranks = tuple(
@@ -143,7 +151,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 6
+    CHECKPOINT_SCHEMA = 7
 
     def __init__(
         self,
@@ -161,6 +169,7 @@ class DenseExternalSamplingCFR:
         fast_omaha_evaluator: bool = True,
         packed_showdown_scores: bool = True,
         fast_class_lookup: bool = True,
+        five_card_score_table: FiveCardScoreTable | None = None,
     ) -> None:
         if mode not in MODE_CONFIGS:
             raise ValueError(f"unsupported mode: {mode}")
@@ -180,6 +189,7 @@ class DenseExternalSamplingCFR:
         self.fast_omaha_evaluator = bool(fast_omaha_evaluator)
         self.packed_showdown_scores = bool(packed_showdown_scores)
         self.fast_class_lookup = bool(fast_class_lookup)
+        self.five_card_score_table = five_card_score_table
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
 
@@ -365,6 +375,7 @@ class DenseExternalSamplingCFR:
                     fast_omaha_evaluator=self.fast_omaha_evaluator,
                     packed_showdown_scores=self.packed_showdown_scores,
                     fast_class_lookup=self.fast_class_lookup,
+                    five_card_score_table=self.five_card_score_table,
                 )
             else:
                 deal = raw_deal
@@ -421,6 +432,11 @@ class DenseExternalSamplingCFR:
             "fast_omaha_evaluator": self.fast_omaha_evaluator,
             "packed_showdown_scores": self.packed_showdown_scores,
             "fast_class_lookup": self.fast_class_lookup,
+            "five_card_score_table_sha256": (
+                self.five_card_score_table.sha256
+                if self.five_card_score_table is not None
+                else None
+            ),
             "arrays_sha256": self._arrays_sha256(),
         }
 
@@ -457,6 +473,7 @@ class DenseExternalSamplingCFR:
         *,
         class_index: PLO4ClassIndex,
         economic_preset: EconomicPreset | None = None,
+        five_card_score_table: FiveCardScoreTable | None = None,
     ) -> "DenseExternalSamplingCFR":
         directory = Path(directory)
         payload = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
@@ -467,6 +484,18 @@ class DenseExternalSamplingCFR:
             raise ValueError("class-index hash mismatch")
         if payload["raw_lookup_sha256"] != class_index.raw_lookup_sha256:
             raise ValueError("raw class-lookup hash mismatch")
+
+        expected_table_hash = (
+            five_card_score_table.sha256
+            if five_card_score_table is not None
+            else None
+        )
+        if payload["five_card_score_table_sha256"] != expected_table_hash:
+            raise ValueError(
+                "five-card score-table hash mismatch: "
+                f"checkpoint={payload['five_card_score_table_sha256']} "
+                f"requested={expected_table_hash}"
+            )
 
         expected_preset = (
             economic_preset.preset_id if economic_preset is not None else None
@@ -491,6 +520,7 @@ class DenseExternalSamplingCFR:
             fast_omaha_evaluator=bool(payload["fast_omaha_evaluator"]),
             packed_showdown_scores=bool(payload["packed_showdown_scores"]),
             fast_class_lookup=bool(payload["fast_class_lookup"]),
+            five_card_score_table=five_card_score_table,
         )
 
         data = np.load(directory / "state.npz")
