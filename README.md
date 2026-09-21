@@ -60,7 +60,7 @@ CI validates:
 - **OM3:** PARTIAL PASS — mechanics pass; production economics/live behavior remain.
 - **OM4:** PASS.
 - **OM5:** PASS — exact 16,432-class representation selected.
-- **OM6:** IN PROGRESS — Ryzen 9 profiling found the Omaha evaluator at 83.20% of runtime; exact per-deal showdown-rank caching is implemented and awaiting finite A/B performance validation.
+- **OM6:** IN PROGRESS — showdown-rank caching passed exact A/B and raised throughput from 234.06 to 540.79 deals/s (2.31x); the next finite gate caches each exact PLO4 class index once per deal.
 - **OM7+:** BLOCKED.
 
 No long production solve is justified yet.
