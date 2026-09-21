@@ -12,12 +12,14 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
+from deepom.fivecard_table import FiveCardScoreTable
 
 
 TARGET_FUNCTIONS = (
     "prepare_sampled_deal",
     "evaluate_omaha",
     "evaluate_omaha_score",
+    "evaluate_omaha_score_table",
     "evaluate_omaha_reference",
     "_evaluate_five_codes_score",
     "_evaluate_five_codes",
@@ -95,6 +97,7 @@ def main() -> None:
     ap.add_argument("--mode", choices=("4w", "3w", "2w"), default="4w")
     ap.add_argument("--deals", type=int, default=500)
     ap.add_argument("--seed", type=int, default=123)
+    ap.add_argument("--five-card-table", type=Path)
     ap.add_argument("--output-json", type=Path, required=True)
     ap.add_argument("--output-text", type=Path, required=True)
     ap.add_argument("--output-prof", type=Path, required=True)
@@ -108,11 +111,18 @@ def main() -> None:
     class_index = PLO4ClassIndex.build()
     index_build_seconds = time.perf_counter() - t0
 
+    five_card_table = (
+        FiveCardScoreTable.load_or_build(args.five_card_table)
+        if args.five_card_table is not None
+        else None
+    )
+
     solver = DenseExternalSamplingCFR(
         mode=args.mode,
         class_index=class_index,
         seed=args.seed,
         economic_preset=None,
+        five_card_score_table=five_card_table,
     )
 
     profiler = cProfile.Profile()
@@ -135,7 +145,8 @@ def main() -> None:
 
     eval_handrank_seconds = float(targeted["evaluate_omaha"]["cumulative_seconds"])
     eval_score_seconds = float(targeted["evaluate_omaha_score"]["cumulative_seconds"])
-    eval_seconds = max(eval_handrank_seconds, eval_score_seconds)
+    eval_table_seconds = float(targeted["evaluate_omaha_score_table"]["cumulative_seconds"])
+    eval_seconds = max(eval_handrank_seconds, eval_score_seconds, eval_table_seconds)
     class_lookup_seconds = float(targeted["index_of"]["cumulative_seconds"])
     canonical_seconds = float(targeted["canonical_key_plo4"]["cumulative_seconds"])
 
@@ -159,6 +170,9 @@ def main() -> None:
         "economics": None,
         "class_count": len(class_index.keys),
         "class_index_sha256": class_index.sha256,
+        "five_card_score_table_sha256": (
+            five_card_table.sha256 if five_card_table is not None else None
+        ),
         "index_build_excluded_from_profile": True,
         "index_build_seconds": index_build_seconds,
         "wall_seconds_profiled": wall_seconds,
@@ -172,6 +186,7 @@ def main() -> None:
         "high_level_attribution": {
             "evaluate_omaha_handrank_cumulative_seconds": eval_handrank_seconds,
             "evaluate_omaha_score_cumulative_seconds": eval_score_seconds,
+            "evaluate_omaha_score_table_cumulative_seconds": eval_table_seconds,
             "omaha_evaluator_cumulative_seconds": eval_seconds,
             "omaha_evaluator_share_of_profile": eval_share,
             "class_lookup_cumulative_seconds": class_lookup_seconds,
