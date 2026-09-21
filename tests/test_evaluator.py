@@ -1,3 +1,4 @@
+import random
 import unittest
 
 from deepom.evaluator import (
@@ -12,6 +13,7 @@ from deepom.evaluator import (
     TWO_PAIR,
     evaluate_five,
     evaluate_omaha,
+    evaluate_omaha_reference,
     qualifies_aof_omaha_jackpot,
 )
 
@@ -88,6 +90,23 @@ class OmahaSemanticsTests(unittest.TestCase):
             evaluate_omaha(
                 "As Kd Qh".split(),
                 "2s 3d 4h 5c 6s".split(),
+            )
+
+
+class FastEvaluatorEquivalenceTests(unittest.TestCase):
+    def test_fast_matches_reference_on_deterministic_random_corpus(self):
+        ranks = "23456789TJQKA"
+        suits = "cdhs"
+        deck = [r + s for r in ranks for s in suits]
+        rng = random.Random(20260921)
+
+        for _ in range(1000):
+            cards = rng.sample(deck, 9)
+            hole = cards[:4]
+            board = cards[4:]
+            self.assertEqual(
+                evaluate_omaha(hole, board),
+                evaluate_omaha_reference(hole, board),
             )
 
 
