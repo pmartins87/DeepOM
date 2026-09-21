@@ -77,6 +77,33 @@ class DenseSolverTests(unittest.TestCase):
             cached.manifest()["arrays_sha256"],
         )
 
+    def test_class_index_cache_matches_uncached_solver_exactly(self):
+        uncached = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=321,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=False,
+        )
+        cached = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=321,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+        )
+
+        uncached.run(additional_iterations=2, deals_per_iteration=3)
+        cached.run(additional_iterations=2, deals_per_iteration=3)
+
+        np.testing.assert_array_equal(uncached.regrets, cached.regrets)
+        np.testing.assert_array_equal(uncached.strategy_sum, cached.strategy_sum)
+        np.testing.assert_array_equal(uncached.visits, cached.visits)
+        self.assertEqual(
+            uncached.manifest()["arrays_sha256"],
+            cached.manifest()["arrays_sha256"],
+        )
+
     def test_checkpoint_resume_matches_continuous_run(self):
         a = DenseExternalSamplingCFR(
             mode="2w",
