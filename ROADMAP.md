@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — DETAILED HOTSPOT ATTRIBUTION GATE**
+Status: **IN PROGRESS — RESIDENT/PRE-INDEXED DEAL GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -232,17 +232,28 @@ Post-table profile:
 
 The evaluator and residual path are now close enough that another structural choice requires function-level attribution.
 
-Current finite gate:
-- read the existing post-table cProfile;
-- report top functions by cumulative and self time;
-- no new training.
+Detailed hotspot attribution: **PASS**.
+
+Main actionable costs:
+- prepare/evaluator data path dominates cumulative time;
+- memmap element access alone is ~0.031 s self;
+- repeated normalization/validation/string->index conversion is material;
+- CFR traversal is the next major family, but not yet the best first target.
+
+Selected next finite optimization:
+- resident five-card table;
+- one-time sampled-deal card-index preparation;
+- direct indexed Omaha table lookup;
+- direct indexed exact class lookup;
+- exact trajectory A/B required.
 
 Current runner:
-`tools/run_om6_profile_detail.sh`.
+`tools/run_om6_prepared_integer_gate.sh`.
 
 Remaining OM6 gate:
-- detailed hotspot result;
-- one next measured optimization/parallelism decision;
+- resident/pre-indexed A/B result;
+- post-optimization profile;
+- if residual CFR/state work becomes dominant, move there and stop evaluator micro-optimization;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -303,6 +314,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 detailed hotspot attribution -> one next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 resident/pre-indexed deal A/B + post-profile -> CFR/traversal or parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
