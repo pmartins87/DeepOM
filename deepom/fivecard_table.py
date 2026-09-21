@@ -63,6 +63,7 @@ class FiveCardScoreTable:
     path: str | None
     build_seconds: float | None
     loaded_from_cache: bool
+    memory_mapped: bool = False
 
     @classmethod
     def build(cls) -> "FiveCardScoreTable":
@@ -86,16 +87,26 @@ class FiveCardScoreTable:
             path=None,
             build_seconds=elapsed,
             loaded_from_cache=False,
+            memory_mapped=False,
         )
 
     @classmethod
-    def load_or_build(cls, path: str | Path) -> "FiveCardScoreTable":
+    def load_or_build(
+        cls,
+        path: str | Path,
+        *,
+        memory_map: bool = False,
+    ) -> "FiveCardScoreTable":
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         if path.exists():
             t0 = time.perf_counter()
-            scores = np.load(path, mmap_mode="r", allow_pickle=False)
+            scores = np.load(
+                path,
+                mmap_mode=("r" if memory_map else None),
+                allow_pickle=False,
+            )
             if scores.shape != (FIVE_CARD_COUNT,):
                 raise ValueError(
                     f"invalid five-card table shape: {scores.shape}; "
@@ -113,6 +124,7 @@ class FiveCardScoreTable:
                 path=str(path),
                 build_seconds=time.perf_counter() - t0,
                 loaded_from_cache=True,
+                memory_mapped=memory_map,
             )
 
         built = cls.build()
@@ -120,7 +132,11 @@ class FiveCardScoreTable:
         np.save(tmp, built.scores, allow_pickle=False)
         tmp.replace(path)
 
-        scores = np.load(path, mmap_mode="r", allow_pickle=False)
+        scores = np.load(
+            path,
+            mmap_mode=("r" if memory_map else None),
+            allow_pickle=False,
+        )
         digest = _sha256_scores(scores)
         if digest != built.sha256:
             raise RuntimeError("five-card score-table hash changed after persistence")
@@ -131,6 +147,7 @@ class FiveCardScoreTable:
             path=str(path),
             build_seconds=built.build_seconds,
             loaded_from_cache=False,
+            memory_mapped=memory_map,
         )
 
     def score_indices(self, indices: Iterable[int]) -> int:
@@ -141,6 +158,35 @@ class FiveCardScoreTable:
         if len(indices) != 5:
             raise ValueError(f"expected 5 cards, got {len(indices)}")
         return self.score_indices(indices)
+
+
+def evaluate_omaha_score_table_indices(
+    hole_indices: Iterable[int],
+    board_indices: Iterable[int],
+    table: FiveCardScoreTable,
+) -> int:
+    """Exact Omaha 2+3 score from already-valid deck indices."""
+    hi = tuple(sorted(int(i) for i in hole_indices))
+    bi = tuple(sorted(int(i) for i in board_indices))
+    if len(hi) != 4:
+        raise ValueError(f"expected 4 hole indices, got {len(hi)}")
+    if len(bi) not in (3, 4, 5):
+        raise ValueError(f"expected 3, 4 or 5 board indices, got {len(bi)}")
+
+    scores = table.scores
+    best = -1
+    for i, j in _PAIR_POS_4:
+        h0 = hi[i]
+        h1 = hi[j]
+        for x, y, z in _TRIPLE_POS[len(bi)]:
+            a, b, c, d, e = sorted((h0, h1, bi[x], bi[y], bi[z]))
+            score = int(scores[colex_rank5_sorted(a, b, c, d, e)])
+            if score > best:
+                best = score
+
+    if best < 0:
+        raise RuntimeError("no legal Omaha 2+3 combination")
+    return best
 
 
 def evaluate_omaha_score_table(
