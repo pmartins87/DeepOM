@@ -60,7 +60,7 @@ CI validates:
 - **OM3:** PARTIAL PASS — mechanics pass; production economics/live behavior remain.
 - **OM4:** PASS.
 - **OM5:** PASS — exact 16,432-class representation selected.
-- **OM6:** IN PROGRESS — showdown-rank caching passed exact A/B and raised throughput from 234.06 to 540.79 deals/s (2.31x); the next finite gate caches each exact PLO4 class index once per deal.
+- **OM6:** IN PROGRESS — showdown-rank + class-index caching raised throughput from 234.06 to 751.93 deals/s (~3.21x) with bit-identical solver arrays; the next finite gate validates the exact encoded Omaha evaluator fast path.
 - **OM7+:** BLOCKED.
 
 No long production solve is justified yet.
