@@ -20,11 +20,13 @@ TARGET_FUNCTIONS = (
     "evaluate_omaha",
     "evaluate_omaha_score",
     "evaluate_omaha_score_table",
+    "evaluate_omaha_score_table_indices",
     "evaluate_omaha_reference",
     "_evaluate_five_codes_score",
     "_evaluate_five_codes",
     "evaluate_five",
     "index_of",
+    "index_of_indices",
     "index_of_reference",
     "_colex_rank4",
     "canonical_key_plo4",
@@ -146,8 +148,23 @@ def main() -> None:
     eval_handrank_seconds = float(targeted["evaluate_omaha"]["cumulative_seconds"])
     eval_score_seconds = float(targeted["evaluate_omaha_score"]["cumulative_seconds"])
     eval_table_seconds = float(targeted["evaluate_omaha_score_table"]["cumulative_seconds"])
-    eval_seconds = max(eval_handrank_seconds, eval_score_seconds, eval_table_seconds)
-    class_lookup_seconds = float(targeted["index_of"]["cumulative_seconds"])
+    eval_table_indices_seconds = float(
+        targeted["evaluate_omaha_score_table_indices"]["cumulative_seconds"]
+    )
+    eval_seconds = max(
+        eval_handrank_seconds,
+        eval_score_seconds,
+        eval_table_seconds,
+        eval_table_indices_seconds,
+    )
+    class_lookup_string_seconds = float(targeted["index_of"]["cumulative_seconds"])
+    class_lookup_indices_seconds = float(
+        targeted["index_of_indices"]["cumulative_seconds"]
+    )
+    class_lookup_seconds = max(
+        class_lookup_string_seconds,
+        class_lookup_indices_seconds,
+    )
     canonical_seconds = float(targeted["canonical_key_plo4"]["cumulative_seconds"])
 
     eval_share = _share(eval_seconds, total_profile_seconds)
@@ -187,8 +204,11 @@ def main() -> None:
             "evaluate_omaha_handrank_cumulative_seconds": eval_handrank_seconds,
             "evaluate_omaha_score_cumulative_seconds": eval_score_seconds,
             "evaluate_omaha_score_table_cumulative_seconds": eval_table_seconds,
+            "evaluate_omaha_score_table_indices_cumulative_seconds": eval_table_indices_seconds,
             "omaha_evaluator_cumulative_seconds": eval_seconds,
             "omaha_evaluator_share_of_profile": eval_share,
+            "class_lookup_string_cumulative_seconds": class_lookup_string_seconds,
+            "class_lookup_indices_cumulative_seconds": class_lookup_indices_seconds,
             "class_lookup_cumulative_seconds": class_lookup_seconds,
             "class_lookup_share_of_profile": class_lookup_share,
             "canonical_key_plo4_cumulative_seconds": canonical_seconds,
@@ -196,7 +216,7 @@ def main() -> None:
             "residual_share": residual_share,
             "provisional_dominant_family": provisional_dominant_family,
             "note": (
-                "The active Omaha evaluator path (HandRank or packed score) and index_of are disjoint high-level per-deal paths. "
+                "The active Omaha evaluator path and active class-lookup path are disjoint high-level per-deal paths. "
                 "canonical_key_plo4 is retained as a diagnostic nested/reference path. "
                 "Residual includes traversal/state/NumPy/Python and other work."
             ),
