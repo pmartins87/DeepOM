@@ -20,6 +20,9 @@ TARGET_FUNCTIONS = (
     "evaluate_omaha_reference",
     "_evaluate_five_codes",
     "evaluate_five",
+    "index_of",
+    "index_of_reference",
+    "_colex_rank4",
     "canonical_key_plo4",
     "canonicalize_plo4",
     "normalized_hand",
@@ -129,16 +132,18 @@ def main() -> None:
     }
 
     eval_seconds = float(targeted["evaluate_omaha"]["cumulative_seconds"])
+    class_lookup_seconds = float(targeted["index_of"]["cumulative_seconds"])
     canonical_seconds = float(targeted["canonical_key_plo4"]["cumulative_seconds"])
 
     eval_share = _share(eval_seconds, total_profile_seconds)
+    class_lookup_share = _share(class_lookup_seconds, total_profile_seconds)
     canonical_share = _share(canonical_seconds, total_profile_seconds)
-    residual_share = max(0.0, 1.0 - eval_share - canonical_share)
+    residual_share = max(0.0, 1.0 - eval_share - class_lookup_share)
 
-    if eval_share >= canonical_share and eval_share >= residual_share:
+    if eval_share >= class_lookup_share and eval_share >= residual_share:
         provisional_dominant_family = "omaha_evaluator"
-    elif canonical_share >= eval_share and canonical_share >= residual_share:
-        provisional_dominant_family = "plo4_canonicalization_lookup"
+    elif class_lookup_share >= eval_share and class_lookup_share >= residual_share:
+        provisional_dominant_family = "plo4_class_lookup"
     else:
         provisional_dominant_family = "cfr_python_and_other"
 
@@ -163,13 +168,15 @@ def main() -> None:
         "high_level_attribution": {
             "evaluate_omaha_cumulative_seconds": eval_seconds,
             "evaluate_omaha_share_of_profile": eval_share,
+            "class_lookup_cumulative_seconds": class_lookup_seconds,
+            "class_lookup_share_of_profile": class_lookup_share,
             "canonical_key_plo4_cumulative_seconds": canonical_seconds,
             "canonical_key_plo4_share_of_profile": canonical_share,
             "residual_share": residual_share,
             "provisional_dominant_family": provisional_dominant_family,
             "note": (
-                "evaluate_omaha and canonical_key_plo4 are disjoint high-level paths "
-                "in the gross trainer, so their cumulative shares are directly useful. "
+                "evaluate_omaha and index_of are disjoint high-level per-deal paths. "
+                "canonical_key_plo4 is retained as a diagnostic nested/reference path. "
                 "Residual includes traversal/state/NumPy/Python and other work."
             ),
         },
