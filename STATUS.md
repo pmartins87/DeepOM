@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — RAW CLASS LOOKUP GATE**
+- OM6 Solver engineering: **IN PROGRESS — PACKED SHOWDOWN SCORE GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -138,13 +138,29 @@ Post-fast-evaluator profile:
 - canonical class computation: **29.96%**;
 - residual CFR/Python/NumPy/state work: **29.56%**.
 
+Raw class-lookup gate: **PASS**.
+
+Measured on Ryzen 9:
+- canonical reference lookup: 2,359.496 deals/s;
+- dense raw-hand lookup: 3,141.869 deals/s;
+- speedup: **1.3316x**;
+- exact solver-array SHA256 match: PASS.
+
+Relative to the original 234.062 deals/s path, the current trainer is about **13.42x faster** with the same solver trajectory.
+
+Post-raw-lookup profile:
+- evaluator: **57.26%**;
+- direct class lookup: **5.13%**;
+- residual CFR/Python/NumPy/state work: **37.62%**;
+- canonicalization: 0%.
+
 Current selected optimization:
-- replace per-deal 24-suit canonicalization with a dense lossless raw-hand -> exact class-id table;
-- keep canonicalization as the reference oracle;
-- require direct lookup equivalence and bit-identical solver trajectory.
+- preserve exact hand ordering in one packed integer score;
+- remove per-candidate `HandRank` object creation from the solver hot path;
+- require direct score equivalence and bit-identical solver trajectory.
 
 Current runner:
-`tools/run_om6_raw_class_lookup_gate.sh`
+`tools/run_om6_packed_score_gate.sh`
 
 No long convergence training yet.
 
@@ -168,3 +184,5 @@ No long convergence training yet.
 - `docs/OM6_FAST_EVALUATOR_GATE_20260921.md`
 - `docs/OM6_FAST_EVALUATOR_RESULT_20260921.md`
 - `docs/OM6_RAW_CLASS_LOOKUP_GATE_20260921.md`
+- `docs/OM6_RAW_CLASS_LOOKUP_RESULT_20260921.md`
+- `docs/OM6_PACKED_SCORE_GATE_20260921.md`
