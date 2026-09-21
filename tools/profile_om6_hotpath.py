@@ -17,6 +17,8 @@ from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
 TARGET_FUNCTIONS = (
     "prepare_sampled_deal",
     "evaluate_omaha",
+    "evaluate_omaha_reference",
+    "_evaluate_five_codes",
     "evaluate_five",
     "canonical_key_plo4",
     "canonicalize_plo4",
