@@ -29,7 +29,12 @@ from .canonical import canonical_key_plo4
 from .economics import EconomicPreset, apply_economics_to_gross, economic_terminal_payoff
 from .equity import DECK
 from .evaluator import HandRank, evaluate_omaha, evaluate_omaha_reference, evaluate_omaha_score, normalize_cards
-from .fivecard_table import FiveCardScoreTable, evaluate_omaha_score_table
+from .fivecard_table import (
+    CARD_INDEX as FIVE_CARD_INDEX,
+    FiveCardScoreTable,
+    evaluate_omaha_score_table,
+    evaluate_omaha_score_table_indices,
+)
 from .solver_proto import SampledDeal, sample_full_deal
 
 ACT_FOLD = 0
@@ -59,13 +64,32 @@ def prepare_sampled_deal(
     packed_showdown_scores: bool = True,
     fast_class_lookup: bool = True,
     five_card_score_table: FiveCardScoreTable | None = None,
+    prepared_integer_fastpath: bool = True,
 ) -> PreparedSampledDeal:
     """Compute immutable per-deal Omaha data once."""
+    indexed_holes: tuple[tuple[int, ...], ...] | None = None
+    indexed_board: tuple[int, ...] | None = None
+    if prepared_integer_fastpath:
+        indexed_holes = tuple(
+            tuple(FIVE_CARD_INDEX[c] for c in hole)
+            for hole in deal.hole_cards
+        )
+        indexed_board = tuple(FIVE_CARD_INDEX[c] for c in deal.board_cards)
+
     if fast_omaha_evaluator and packed_showdown_scores:
         if five_card_score_table is None:
             ranks = tuple(
                 evaluate_omaha_score(hole, deal.board_cards)
                 for hole in deal.hole_cards
+            )
+        elif indexed_holes is not None and indexed_board is not None:
+            ranks = tuple(
+                evaluate_omaha_score_table_indices(
+                    hole_idx,
+                    indexed_board,
+                    five_card_score_table,
+                )
+                for hole_idx in indexed_holes
             )
         else:
             ranks = tuple(
@@ -78,8 +102,11 @@ def prepare_sampled_deal(
             evaluator(hole, deal.board_cards)
             for hole in deal.hole_cards
         )
+
     if class_index is None:
         class_indices = None
+    elif fast_class_lookup and indexed_holes is not None:
+        class_indices = tuple(class_index.index_of_indices(hole_idx) for hole_idx in indexed_holes)
     else:
         lookup = class_index.index_of if fast_class_lookup else class_index.index_of_reference
         class_indices = tuple(lookup(hole) for hole in deal.hole_cards)
@@ -137,10 +164,13 @@ class PLO4ClassIndex:
         except KeyError as exc:
             raise KeyError(f"canonical PLO4 class not present: {key}") from exc
 
+    def index_of_indices(self, hole_indices: Iterable[int]) -> int:
+        raw_rank = _colex_rank4(hole_indices)
+        return int(self.raw_to_class[raw_rank])
+
     def index_of(self, hole_cards: Iterable[str]) -> int:
         cards = normalize_cards(hole_cards, expected=4)
-        raw_rank = _colex_rank4(CARD_DECK_INDEX[c] for c in cards)
-        return int(self.raw_to_class[raw_rank])
+        return self.index_of_indices(CARD_DECK_INDEX[c] for c in cards)
 
 
 class DenseExternalSamplingCFR:
@@ -151,7 +181,7 @@ class DenseExternalSamplingCFR:
     state is stored in compact NumPy arrays indexed by (scenario, hand class).
     """
 
-    CHECKPOINT_SCHEMA = 7
+    CHECKPOINT_SCHEMA = 8
 
     def __init__(
         self,
@@ -170,6 +200,7 @@ class DenseExternalSamplingCFR:
         packed_showdown_scores: bool = True,
         fast_class_lookup: bool = True,
         five_card_score_table: FiveCardScoreTable | None = None,
+        prepared_integer_fastpath: bool = True,
     ) -> None:
         if mode not in MODE_CONFIGS:
             raise ValueError(f"unsupported mode: {mode}")
@@ -190,6 +221,7 @@ class DenseExternalSamplingCFR:
         self.packed_showdown_scores = bool(packed_showdown_scores)
         self.fast_class_lookup = bool(fast_class_lookup)
         self.five_card_score_table = five_card_score_table
+        self.prepared_integer_fastpath = bool(prepared_integer_fastpath)
         self.rng = random.Random(self.seed)
         self.iteration_completed = 0
 
@@ -376,6 +408,7 @@ class DenseExternalSamplingCFR:
                     packed_showdown_scores=self.packed_showdown_scores,
                     fast_class_lookup=self.fast_class_lookup,
                     five_card_score_table=self.five_card_score_table,
+                    prepared_integer_fastpath=self.prepared_integer_fastpath,
                 )
             else:
                 deal = raw_deal
@@ -437,6 +470,7 @@ class DenseExternalSamplingCFR:
                 if self.five_card_score_table is not None
                 else None
             ),
+            "prepared_integer_fastpath": self.prepared_integer_fastpath,
             "arrays_sha256": self._arrays_sha256(),
         }
 
@@ -521,6 +555,7 @@ class DenseExternalSamplingCFR:
             packed_showdown_scores=bool(payload["packed_showdown_scores"]),
             fast_class_lookup=bool(payload["fast_class_lookup"]),
             five_card_score_table=five_card_score_table,
+            prepared_integer_fastpath=bool(payload["prepared_integer_fastpath"]),
         )
 
         data = np.load(directory / "state.npz")
