@@ -51,6 +51,32 @@ class DenseSolverTests(unittest.TestCase):
         fold_p, allin_p = s.current_strategy(bb_sc, bb_hi)
         self.assertEqual((fold_p, allin_p), (1.0, 0.0))
 
+
+    def test_rank_cache_matches_legacy_solver_exactly(self):
+        legacy = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=987,
+            precompute_showdown_ranks=False,
+        )
+        cached = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=987,
+            precompute_showdown_ranks=True,
+        )
+
+        legacy.run(additional_iterations=2, deals_per_iteration=3)
+        cached.run(additional_iterations=2, deals_per_iteration=3)
+
+        np.testing.assert_array_equal(legacy.regrets, cached.regrets)
+        np.testing.assert_array_equal(legacy.strategy_sum, cached.strategy_sum)
+        np.testing.assert_array_equal(legacy.visits, cached.visits)
+        self.assertEqual(
+            legacy.manifest()["arrays_sha256"],
+            cached.manifest()["arrays_sha256"],
+        )
+
     def test_checkpoint_resume_matches_continuous_run(self):
         a = DenseExternalSamplingCFR(
             mode="2w",
