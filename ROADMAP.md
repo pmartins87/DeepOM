@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — FIVE-CARD SCORE TABLE GATE**
+Status: **IN PROGRESS — DETAILED HOTSPOT ATTRIBUTION GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -217,20 +217,32 @@ Post-packed-score profile:
 - direct class lookup 4.83%;
 - residual 35.47%.
 
-Selected next finite optimization:
-- exact all-five-card packed-score table;
-- 2,598,960 entries;
-- deterministic combinadic lookup;
-- arithmetic evaluator retained as reference oracle;
-- solver-level bit-identical A/B required.
+Five-card score-table A/B: **PASS**.
+
+Measured:
+- 3,022.880 -> 4,486.021 deals/s;
+- **1.4840x** speedup;
+- bit-identical solver arrays;
+- direct table validation: 0 mismatches.
+
+Post-table profile:
+- evaluator 50.61%;
+- direct class lookup 6.05%;
+- residual 43.35%.
+
+The evaluator and residual path are now close enough that another structural choice requires function-level attribution.
+
+Current finite gate:
+- read the existing post-table cProfile;
+- report top functions by cumulative and self time;
+- no new training.
 
 Current runner:
-`tools/run_om6_fivecard_table_gate.sh`.
+`tools/run_om6_profile_detail.sh`.
 
 Remaining OM6 gate:
-- five-card table A/B result;
-- post-table profile;
-- choose remaining evaluator/traversal optimization or controlled parallelism from measured attribution;
+- detailed hotspot result;
+- one next measured optimization/parallelism decision;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -291,6 +303,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 five-card score-table A/B + post-profile -> next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 detailed hotspot attribution -> one next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
