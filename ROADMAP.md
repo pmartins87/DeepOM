@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — PACKED SHOWDOWN SCORE GATE**
+Status: **IN PROGRESS — FIVE-CARD SCORE TABLE GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -205,18 +205,32 @@ Post-raw-lookup profile:
 - residual 37.62%;
 - canonicalization 0%.
 
+Packed showdown-score A/B: **PASS**.
+
+Measured:
+- 2,825.052 -> 2,980.913 deals/s;
+- **1.0552x** speedup;
+- bit-identical solver arrays.
+
+Post-packed-score profile:
+- evaluator 59.70%;
+- direct class lookup 4.83%;
+- residual 35.47%.
+
 Selected next finite optimization:
-- exact packed integer showdown scores;
-- public HandRank evaluator retained;
+- exact all-five-card packed-score table;
+- 2,598,960 entries;
+- deterministic combinadic lookup;
+- arithmetic evaluator retained as reference oracle;
 - solver-level bit-identical A/B required.
 
 Current runner:
-`tools/run_om6_packed_score_gate.sh`.
+`tools/run_om6_fivecard_table_gate.sh`.
 
 Remaining OM6 gate:
-- packed-score A/B result;
-- post-packed-score profile;
-- choose further evaluator/traversal optimization or controlled parallelism from measured attribution;
+- five-card table A/B result;
+- post-table profile;
+- choose remaining evaluator/traversal optimization or controlled parallelism from measured attribution;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -277,6 +291,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 packed-score A/B + post-profile -> next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 five-card score-table A/B + post-profile -> next measured optimization/parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
