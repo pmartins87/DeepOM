@@ -15,6 +15,7 @@ from deepom.dense_solver import DenseExternalSamplingCFR, PLO4ClassIndex
 
 
 TARGET_FUNCTIONS = (
+    "prepare_sampled_deal",
     "evaluate_omaha",
     "evaluate_five",
     "canonical_key_plo4",
@@ -26,6 +27,7 @@ TARGET_FUNCTIONS = (
     "current_strategy",
     "_terminal_utility",
     "gross_terminal_payoff",
+    "gross_terminal_payoff_from_ranks",
     "scenario_for_state",
     "next_actor_index",
     "apply_action",
