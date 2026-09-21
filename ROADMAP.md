@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — LOCAL BENCHMARK GATE**
+Status: **IN PROGRESS — PROFILING GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -131,19 +131,25 @@ Passed:
 - class-index and solver-array content hashes;
 - checkpoint/resume equivalence regression.
 
-Current finite gate:
-- run the prescribed 4w economic + gross benchmark on target hardware;
-- compare throughput;
-- identify the measured bottleneck.
+Target-hardware benchmark: **PASS**.
 
-Only after this gate decide whether the next optimization is multiprocessing, evaluator acceleration, canonical lookup acceleration, or another measured target.
+Measured on Ryzen 9 / WSL2:
+- economic: 226.307 deals/s;
+- gross: 229.477 deals/s;
+- economic slowdown: ~1.38%.
 
-Remaining after benchmark:
-- selected throughput optimization;
+Decision:
+- economic/promotion arithmetic is not the material bottleneck;
+- next finite gate is profiling the shared evaluator/canonicalization/CFR path;
+- do not parallelize or launch long training until attribution exists.
+
+Remaining OM6 gate:
+- profiling result;
+- one selected throughput optimization;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
-Benchmark contract: `docs/OM6_LOCAL_BENCHMARK_GATE_20260920.md`.
+Benchmark record: `docs/OM6_TARGET_BENCHMARK_RESULT_20260920.md`.
 
 ---
 
@@ -200,6 +206,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**Finite OM6 target-hardware benchmark -> measured optimization decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 profiling -> one measured throughput optimization -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
