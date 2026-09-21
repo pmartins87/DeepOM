@@ -1,58 +1,47 @@
 # OM6 Local Benchmark Gate — 2026-09-20
 
+Status: **PASS**
+
 ## Purpose
 
-Measure the dense trainer on the target local hardware before adding multiprocessing or launching any long run.
+Measure the dense trainer on the target hardware before selecting a throughput optimization.
 
-This gate exists to answer one question first:
+## Frozen run
 
-**What is actually limiting throughput after the exact 16,432-class representation and dense arrays are in place?**
+Two 4w tests were completed on the Ryzen 9 / WSL2:
+- 2 iterations;
+- 100 deals/iteration;
+- seed 123;
+- economic payoff enabled vs gross-chip payoff only.
 
-Premature parallelization is explicitly avoided.
+## Results
 
-## Frozen finite benchmark
+Economic:
+- 226.307383558 deals/s
+- 0.883753755 s training
+- 6.282509262 s class-index build
+- 783 visited infosets
 
-Run exactly two 4w tests with identical seed/work:
+Gross:
+- 229.477456977 deals/s
+- 0.871545304 s training
+- 6.478470776 s class-index build
+- 783 visited infosets
 
-1. economic payoff enabled;
-2. gross-chip payoff only.
+Gross/economic throughput ratio = **1.01401**.
 
-Parameters:
-- mode: 4w;
-- iterations: 2;
-- deals per iteration: 100;
-- seed: 123;
-- Fortune multiplier: 1.0;
-- Jackpot multiplier: 1.0.
+Economic mode is only about **1.38% slower**.
 
-Script:
-`tools/run_om6_local_benchmark.sh`
+## Gate decision
 
-Outputs:
-- `runs/om6_dense_4w_econ_i2_d100_seed123.json`
-- `runs/om6_dense_4w_gross_i2_d100_seed123.json`
+The economic/promotion arithmetic is not the material runtime bottleneck.
 
-## Decision gate
+**Next gate:** profile the common path and attribute time among:
+- Omaha hand evaluation;
+- PLO4 canonicalization/class lookup;
+- recursive CFR/Python overhead.
 
-After the two JSON outputs are collected:
+Do not add multiprocessing or launch a long solve until this profile exists.
 
-- if economic vs gross throughput differs materially, profile the promotion/economic path;
-- if both are similarly slow, profile evaluator/canonicalization/traversal;
-- only then decide whether multiprocessing is the next optimization;
-- do not increase iterations/deals simply to "see more".
-
-## Stop criterion
-
-This benchmark ends after the two prescribed files exist. It is not a convergence run and its policy output must not be interpreted as strategy quality.
-
-## Next step after results
-
-Record:
-- index build time;
-- training time;
-- deals/s;
-- visited infosets;
-- core bytes;
-- gross/economic throughput ratio.
-
-Then choose one optimization target and update OM6.
+Detailed record:
+`docs/OM6_TARGET_BENCHMARK_RESULT_20260920.md`.
