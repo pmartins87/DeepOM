@@ -1,6 +1,6 @@
 # DeepOM — Roadmap
 
-Reference date: 2026-09-20
+Reference date: 2026-09-21
 
 ## Definition of done
 
@@ -115,7 +115,7 @@ Record: `docs/OM5_REPRESENTATION_DECISION_20260920.md`.
 
 ## OM6 — Solver engineering
 
-Status: **IN PROGRESS — RESIDENT/PRE-INDEXED DEAL GATE**
+Status: **IN PROGRESS — PREPARED-INTEGER DETAIL GATE**
 
 Passed:
 - sparse external-sampling CFR correctness oracle;
@@ -247,13 +247,28 @@ Selected next finite optimization:
 - direct indexed exact class lookup;
 - exact trajectory A/B required.
 
+Resident/pre-indexed A/B: **PASS**.
+
+Measured:
+- 4,472.200 -> 5,134.580 deals/s;
+- **1.1481x** speedup;
+- bit-identical solver arrays;
+- about **21.94x** the early legacy throughput.
+
+The post-profile family summary is invalid because the profiler had not yet been taught the new fast-path function names. The underlying `.prof` remains valid.
+
+Current finite gate:
+- read the existing post-prepared-integer profile;
+- top 30 cumulative + self-time functions;
+- no new training.
+
 Current runner:
-`tools/run_om6_prepared_integer_gate.sh`.
+`tools/run_om6_prepared_profile_detail.sh`.
 
 Remaining OM6 gate:
-- resident/pre-indexed A/B result;
-- post-optimization profile;
-- if residual CFR/state work becomes dominant, move there and stop evaluator micro-optimization;
+- prepared-integer detailed hotspot result;
+- choose CFR/state traversal vs one final evaluator/indexing optimization;
+- controlled parallelism only after serial hot path freeze;
 - cross-seed economic sensitivity mini-runs;
 - production policy export format.
 
@@ -314,6 +329,6 @@ Status: **FUTURE / SEPARATE FROM BASE**
 
 ## Current critical path
 
-**OM6 resident/pre-indexed deal A/B + post-profile -> CFR/traversal or parallelism decision -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
+**OM6 prepared-integer detailed profile -> freeze next serial target -> short sensitivity/cross-seed runs -> OM0/OM3 freeze -> OM7.**
 
 Do not start a long solve before this sequence passes.
