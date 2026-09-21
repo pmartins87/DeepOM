@@ -12,7 +12,7 @@ Repository: `pmartins87/DeepOM`
 - OM3 AoF kernel: **PARTIAL PASS**
 - OM4 State census: **PASS**
 - OM5 Representation: **PASS**
-- OM6 Solver engineering: **IN PROGRESS — FIVE-CARD SCORE TABLE GATE**
+- OM6 Solver engineering: **IN PROGRESS — DETAILED HOTSPOT ATTRIBUTION GATE**
 - OM7+: **BLOCKED**
 
 ## Validated foundation
@@ -171,15 +171,36 @@ Decision:
 - keep packed scores because they are exact and useful as the storage format for lookup-table evaluation;
 - do not pursue more object-level micro-optimization because the gain was only ~5.5%.
 
-Current selected optimization:
-- precompute the exact score for all 2,598,960 five-card combinations;
-- use a deterministic combinadic index;
-- cache the ~9.91 MiB uint32 table locally;
-- retain the arithmetic evaluator as the reference oracle;
-- require direct table-vs-arithmetic validation and bit-identical solver trajectory.
+Five-card score-table gate: **PASS**.
+
+Measured on Ryzen 9:
+- arithmetic packed-score backend: 3,022.880 deals/s;
+- exact five-card table backend: 4,486.021 deals/s;
+- speedup: **1.4840x**;
+- exact solver-array SHA256 match: PASS;
+- 5,000 five-card + 1,000 Omaha direct validation cases: 0 mismatches.
+
+Table:
+- 2,598,960 entries;
+- 10,395,840 bytes;
+- first build ~2.24 s;
+- SHA256 `d50cf3a649b8c778c5f84389b6f4d287b9ebaffd526d6b4bf32d4e9e7f5c65c4`.
+
+Post-table profile:
+- evaluator: **50.61%**;
+- direct class lookup: **6.05%**;
+- residual CFR/Python/NumPy/state work: **43.35%**.
+
+Decision:
+- keep the five-card table;
+- do not choose C++/multiprocessing yet from family-level data because evaluator and residual are now close.
+
+Current gate:
+- read the existing cProfile artifact and rank exact functions by cumulative/self time;
+- no new training run.
 
 Current runner:
-`tools/run_om6_fivecard_table_gate.sh`
+`tools/run_om6_profile_detail.sh`
 
 No long convergence training yet.
 
@@ -207,3 +228,5 @@ No long convergence training yet.
 - `docs/OM6_PACKED_SCORE_GATE_20260921.md`
 - `docs/OM6_PACKED_SCORE_RESULT_20260921.md`
 - `docs/OM6_FIVECARD_TABLE_GATE_20260921.md`
+- `docs/OM6_FIVECARD_TABLE_RESULT_20260921.md`
+- `docs/OM6_PROFILE_DETAIL_GATE_20260921.md`
