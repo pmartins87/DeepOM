@@ -176,6 +176,39 @@ class DenseSolverTests(unittest.TestCase):
             fast.manifest()["arrays_sha256"],
         )
 
+    def test_packed_showdown_scores_match_handrank_solver_exactly(self):
+        handrank = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=765,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+            fast_omaha_evaluator=True,
+            packed_showdown_scores=False,
+            fast_class_lookup=True,
+        )
+        packed = DenseExternalSamplingCFR(
+            mode="2w",
+            class_index=self.index,
+            seed=765,
+            precompute_showdown_ranks=True,
+            precompute_class_indices=True,
+            fast_omaha_evaluator=True,
+            packed_showdown_scores=True,
+            fast_class_lookup=True,
+        )
+
+        handrank.run(additional_iterations=2, deals_per_iteration=3)
+        packed.run(additional_iterations=2, deals_per_iteration=3)
+
+        np.testing.assert_array_equal(handrank.regrets, packed.regrets)
+        np.testing.assert_array_equal(handrank.strategy_sum, packed.strategy_sum)
+        np.testing.assert_array_equal(handrank.visits, packed.visits)
+        self.assertEqual(
+            handrank.manifest()["arrays_sha256"],
+            packed.manifest()["arrays_sha256"],
+        )
+
     def test_checkpoint_resume_matches_continuous_run(self):
         a = DenseExternalSamplingCFR(
             mode="2w",
